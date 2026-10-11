@@ -1,0 +1,862 @@
+<!doctype html>
+<!--
+  Rover Swarm System Map: part of the rover swarm visuals (index.html, system-map.html,
+  planned-architecture.html). Plain static pages: open in any browser or host
+  the whole folder as-is. Keep every fact in step with docs/ARCHITECTURE.md,
+  docs/FUTURE_PLANS.md, docs/SIMULATION.md and the code.
+  Status keys: hw = on the real rover, sim = simulation, sw = tested software, plan = planned.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Rover Swarm System Map</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root{
+  /* Layout: an engineering notebook. The whole system first, then one section per mechanism (figure, then its steps in order), then the full feature inventory. */
+  --bg:#F2F5F5; --fig:#FBFCFC; --panel:#FFFFFF; --fg:#13272B; --muted:#56696D;
+  --line:#C6D2D4; --node:#8EA3A7; --edge:#6B8286;
+  --accent:#0E6C78; --accent-soft:#D8ECEF; --on-accent:#FFFFFF; --cut:#B3433A;
+  --hw:#2D7C51; --sim:#2C6AB2; --sw:#7650AE; --plan:#A0630E;
+  --f-display:"Barlow Semi Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0D1517; --fig:#111B1E; --panel:#162226; --fg:#E1EBEC; --muted:#93A8AC;
+    --line:#2A3B3F; --node:#4E6569; --edge:#7E969A;
+    --accent:#5BC2CE; --accent-soft:#163A40; --on-accent:#06262A; --cut:#EF8A7D;
+    --hw:#6CC596; --sim:#83B5F0; --sw:#BA9EEA; --plan:#E2AA57; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0D1517; --fig:#111B1E; --panel:#162226; --fg:#E1EBEC; --muted:#93A8AC;
+  --line:#2A3B3F; --node:#4E6569; --edge:#7E969A;
+  --accent:#5BC2CE; --accent-soft:#163A40; --on-accent:#06262A; --cut:#EF8A7D;
+  --hw:#6CC596; --sim:#83B5F0; --sw:#BA9EEA; --plan:#E2AA57; color-scheme:dark;
+}
+body{background:var(--bg);color:var(--fg);font:15px/1.55 var(--f-body);-webkit-font-smoothing:antialiased}
+.wrap{max-width:1180px;margin:0 auto;padding-inline:20px;padding-block:28px 72px}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0}
+h1{font-weight:700;font-size:clamp(32px,4.4vw,46px);line-height:1.02;letter-spacing:.2px}
+h2{font-weight:600;font-size:clamp(23px,2.6vw,28px);line-height:1.1}
+h3{font-weight:600;font-size:17px;line-height:1.2}
+p{margin:0}
+.lead{max-width:70ch;color:var(--muted);font-size:16px}
+.kicker{font:500 11.5px/1 var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+header{display:grid;gap:12px;padding-bottom:18px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 20px;list-style:none;padding:0;margin:4px 0 0;font-size:13.5px}
+.legend li{display:flex;align-items:center;gap:8px}
+.dot{flex:none;display:inline-block;width:9px;height:9px}
+.dot.hw{background:var(--hw);border-radius:50%}
+.dot.sim{background:var(--sim);transform:rotate(45deg) scale(.86)}
+.dot.sw{background:var(--sw)}
+.dot.plan{border:1.6px solid var(--plan);border-radius:50%;box-sizing:border-box}
+nav.toc{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);border-block:1px solid var(--line);display:flex;gap:4px 18px;overflow-x:auto;padding-block:9px;font-size:13.5px;white-space:nowrap}
+nav.toc a{color:var(--muted);text-decoration:none}
+nav.toc a:hover{color:var(--accent)}
+nav.toc a:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+section{display:grid;gap:12px;padding-block:40px 6px;scroll-margin-top:52px}
+section+section{border-top:1px solid var(--line)}
+.fig{margin:6px 0 0;background:var(--fig);border:1px solid var(--line);border-radius:12px;padding:10px;overflow-x:auto}
+.fig svg{display:block;width:100%;height:auto;min-width:var(--minw,900px)}
+figcaption{font-size:13.5px;color:var(--muted);max-width:82ch}
+.hint{display:none;font-size:12.5px;color:var(--muted)}
+@media (max-width:760px){.hint{display:block}}
+.flows,.ffilter{display:flex;flex-wrap:wrap;gap:8px}
+.flows button,.ffilter button{font:500 13.5px/1 var(--f-body);padding:8px 13px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--fg);cursor:pointer}
+.flows button:hover,.ffilter button:hover{border-color:var(--accent)}
+.flows button[aria-pressed="true"],.ffilter button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.ffilter .n{font-family:var(--f-mono);font-size:12px;margin-left:6px;opacity:.8}
+.steps{max-width:78ch;font-size:14.5px}
+.steps ol{margin:0;padding-left:1.4em;display:grid;gap:6px}
+.result{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 16px;max-width:82ch;font-size:14.5px;display:grid;gap:4px}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;max-width:900px}
+.two>div{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;min-width:0}
+.two ul{margin:8px 0 0;padding-left:1.1em;display:grid;gap:4px;font-size:14px}
+.fmap{display:grid;grid-template-columns:repeat(auto-fill,minmax(285px,1fr));gap:14px}
+.branch{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;min-width:0}
+.branch h3{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.branch h3 small{font:400 12px var(--f-mono);color:var(--muted)}
+.branch ul{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:5px}
+.branch li{display:flex;gap:9px;align-items:baseline;font-size:13.5px;line-height:1.4}
+.branch li .dot{transform-origin:center;position:relative;top:-1px}
+.branch li .dot.sim{transform:rotate(45deg) scale(.86)}
+footer{margin-top:40px;padding-top:16px;border-top:1px solid var(--line);font-size:12.5px;color:var(--muted);max-width:90ch}
+code{font-family:var(--f-mono);font-size:.9em}
+
+/* diagrams */
+svg text{font-family:var(--f-body);font-size:11px;fill:var(--fg)}
+svg .nt{font-weight:600;font-size:12.5px}
+svg .mono{font-family:var(--f-mono);font-size:10.5px}
+svg .sub{fill:var(--muted);font-size:10.5px}
+svg .gl{font-weight:600;font-size:13px}
+svg .gs{font-weight:400;fill:var(--muted);font-size:12px}
+svg .box{fill:var(--panel);stroke:var(--node);stroke-width:1.2}
+svg .box.in{fill:var(--fig);stroke-dasharray:4 3}
+svg .grp{fill:none;stroke:var(--line);stroke-width:1.3}
+svg .life{stroke:var(--line);stroke-width:1.3;stroke-dasharray:3 5}
+svg .notebox{fill:var(--accent-soft)}
+svg .tier{fill:var(--accent-soft)}
+svg .d-hw{fill:var(--hw)} svg .d-sim{fill:var(--sim)} svg .d-sw{fill:var(--sw)}
+svg .d-plan{fill:var(--panel);stroke:var(--plan);stroke-width:1.6}
+svg .mk{fill:var(--edge)} svg .mk-hi{fill:var(--accent)} svg .mk-cut{fill:var(--cut)}
+svg .edge path{fill:none;stroke:var(--edge);stroke-width:1.5}
+svg .edge.planned path{stroke-dasharray:6 4}
+svg .edge text{fill:var(--muted);font-size:10.5px;text-anchor:middle;paint-order:stroke;stroke:var(--fig);stroke-width:4px;stroke-linejoin:round}
+svg .edge text.st{text-anchor:start}
+svg .edge,svg .node{transition:opacity .2s}
+.ov[data-flow] .edge:not(.on):not(.cut){opacity:.15}
+.ov[data-flow] .node:not(.on){opacity:.3}
+.ov .edge.on path{stroke:var(--accent);stroke-width:2.4;marker-end:url(#o-h)}
+.ov .edge.on.two path{marker-start:url(#o-hs)}
+.ov .edge.on text{fill:var(--accent);font-weight:600}
+.ov .edge.cut path{stroke:var(--cut);stroke-dasharray:3 4;marker-end:url(#o-c)}
+.ov .edge.cut.two path{marker-start:url(#o-cs)}
+.ov .edge.cut text{fill:var(--cut)}
+.ov .node.on .box{stroke:var(--accent);stroke-width:1.8}
+@media (prefers-reduced-motion:reduce){svg .edge,svg .node{transition:none}}
+</style>
+
+<div class="wrap">
+<header>
+  <p class="kicker">Drishtant Behera · rover swarm project</p>
+  <h1>Rover Swarm System Map</h1>
+  <p class="lead">How information moves between the rovers and the laptop, how a rover decides what to do, and how far along each part is. Checked against the code and docs on 11 October 2026. Where it's heading is on the <a href="planned-architecture.html" style="color:var(--accent)">Planned Swarm Architecture</a> page, and both are combined in the zoomable <a href="index.html" style="color:var(--accent)">Rover Swarm Explorer</a>.</p>
+  <ul class="legend" aria-label="Status key">
+    <li><span class="dot hw"></span>On the real rover</li>
+    <li><span class="dot sim"></span>In simulation (real code, simulated world)</li>
+    <li><span class="dot sw"></span>Software, tested, not yet on a robot</li>
+    <li><span class="dot plan"></span>Planned</li>
+  </ul>
+</header>
+
+<nav class="toc" aria-label="Sections">
+  <a href="#overview">Whole system</a>
+  <a href="#laser">Laser to map</a>
+  <a href="#decide">How a rover decides</a>
+  <a href="#team">Becoming a team</a>
+  <a href="#wifi">When Wi-Fi drops</a>
+  <a href="#request">A request, end to end</a>
+  <a href="#features">Every feature</a>
+</nav>
+
+<!-- ============================================================ OVERVIEW -->
+<section id="overview">
+  <h2>The whole system</h2>
+  <p class="lead">Each rover carries everything it needs to map, decide and drive. The laptop adds what needs both rovers at once: joining their maps, and later, planning missions. If the laptop or the Wi-Fi goes away, the rovers keep going.</p>
+  <div class="flows" role="group" aria-label="Follow one path">
+    <button type="button" data-flow="all" aria-pressed="true">Everything</button>
+    <button type="button" data-flow="sense" aria-pressed="false">Sensors to map</button>
+    <button type="button" data-flow="decide" aria-pressed="false">A decision</button>
+    <button type="button" data-flow="team" aria-pressed="false">Joining maps</button>
+    <button type="button" data-flow="nolink" aria-pressed="false">Wi-Fi drops</button>
+  </div>
+  <figure class="fig ov" id="ov-fig" style="--minw:960px">
+<svg viewBox="0 44 1200 560" role="img" aria-label="Overview. Rover 1 runs firmware, sensing, localization, a camera, driving, decisions and team memory on board. The laptop joins the rovers' maps and will plan missions. Rover 2 runs the same stack and syncs places and tasks with rover 1.">
+<defs>
+  <marker id="o-a" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto"><path class="mk" d="M0,0L10,5L0,10z"/></marker>
+  <marker id="o-as" viewBox="0 0 10 10" refX="0" refY="5" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto"><path class="mk" d="M10,0L0,5L10,10z"/></marker>
+  <marker id="o-h" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto"><path class="mk-hi" d="M0,0L10,5L0,10z"/></marker>
+  <marker id="o-hs" viewBox="0 0 10 10" refX="0" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto"><path class="mk-hi" d="M10,0L0,5L10,10z"/></marker>
+  <marker id="o-c" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto"><path class="mk-cut" d="M0,0L10,5L0,10z"/></marker>
+  <marker id="o-cs" viewBox="0 0 10 10" refX="0" refY="5" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto"><path class="mk-cut" d="M10,0L0,5L10,10z"/></marker>
+</defs>
+
+<!-- groups -->
+<rect class="grp" x="10" y="56" width="946" height="364" rx="12"/>
+<text class="gl" x="26" y="82">Rover 1<tspan class="gs" dx="8">Orange Pi 5 Ultra (ROS 2) + ESP32 · all of this runs on board</tspan></text>
+<rect class="grp" x="10" y="452" width="946" height="120" rx="12"/>
+<text class="gl" x="26" y="476">Rover 2<tspan class="gs" dx="8">being built · runs in simulation today</tspan></text>
+<rect class="grp" x="984" y="56" width="208" height="350" rx="12"/>
+<text class="gl" x="998" y="82">Laptop<tspan class="gs" dx="6">ground station</tspan></text>
+
+<!-- edges (drawn under nodes) -->
+<g class="edge f-sense f-local"><path d="M184,150H250" marker-end="url(#o-a)"/><text x="217" y="142">ticks · gyro</text></g>
+<g class="edge f-decide f-local"><path d="M250,350H184" marker-end="url(#o-a)"/><text x="217" y="342">commands</text></g>
+<g class="edge f-sense f-local"><path d="M440,170H500" marker-end="url(#o-a)"/><text x="470" y="148">scans</text><text x="470" y="160">+ odometry</text></g>
+<g class="edge f-sense f-decide f-local"><path d="M595,214V290" marker-end="url(#o-a)"/><text class="st" x="603" y="256">pose · σ</text></g>
+<g class="edge f-decide f-local"><path d="M500,350H440" marker-end="url(#o-a)"/><text x="470" y="342">actions</text></g>
+<g class="edge f-sense f-local"><path d="M530,214V246H345V290" marker-end="url(#o-a)"/><text x="437" y="240">map → explorer</text></g>
+<g class="edge f-decide f-local"><path d="M800,214V262H660V290" marker-end="url(#o-a)"/><text x="730" y="256">anomalies</text></g>
+<g class="edge two f-decide f-local"><path d="M690,344H750" marker-start="url(#o-as)" marker-end="url(#o-a)"/><text x="720" y="324">places</text><text x="720" y="336">+ tasks</text></g>
+<g class="edge f-sense f-team f-cross"><path d="M650,118V100H970V150H996" marker-end="url(#o-a)"/><text x="820" y="94">own map</text></g>
+<g class="edge f-team f-cross"><path d="M940,190H996" marker-end="url(#o-a)"/><text x="968" y="172">tag</text><text x="968" y="183">sightings</text></g>
+<g class="edge two f-team f-cross"><path d="M845,386V490" marker-start="url(#o-as)" marker-end="url(#o-a)"/><text class="st" x="853" y="440">places + tasks sync</text></g>
+<g class="edge planned f-team f-cross"><path d="M996,338H940" marker-end="url(#o-a)"/><text x="968" y="330">task graph</text></g>
+<g class="edge f-team f-cross"><path d="M595,550V590H1186V166H1180" marker-end="url(#o-a)"/><text x="880" y="584">rover 2's map + tag sightings</text></g>
+
+<!-- rover 1 nodes -->
+<g class="node f-sense f-decide f-local" transform="translate(24,118)">
+  <rect class="box" width="160" height="268" rx="7"/>
+  <text class="nt" x="12" y="24">ESP32 + motors</text>
+  <circle class="d-hw" cx="16" cy="46" r="4"/><text x="28" y="50">4 motors + encoders</text>
+  <circle class="d-hw" cx="16" cy="66" r="4"/><text x="28" y="70">per-wheel PID, 50 Hz</text>
+  <circle class="d-hw" cx="16" cy="86" r="4"/><text x="28" y="90">MPU-6050 gyro</text>
+  <circle class="d-hw" cx="16" cy="106" r="4"/><text x="28" y="110">500 ms motor watchdog</text>
+  <text class="sub" x="12" y="140">not fitted yet</text>
+  <circle class="d-plan" cx="16" cy="156" r="3.4"/><text x="28" y="160">battery monitor</text>
+  <circle class="d-plan" cx="16" cy="176" r="3.4"/><text x="28" y="180">e-stop button</text>
+  <circle class="d-plan" cx="16" cy="196" r="3.4"/><text x="28" y="200">robotic arm</text>
+  <circle class="d-plan" cx="16" cy="216" r="3.4"/><text x="28" y="220">LoRa radio</text>
+  <circle class="d-plan" cx="16" cy="236" r="3.4"/><text x="28" y="240">charging pad</text>
+</g>
+<g class="node f-sense f-local" transform="translate(250,118)">
+  <rect class="box" width="190" height="96" rx="7"/>
+  <text class="nt" x="12" y="24">Sensing</text>
+  <circle class="d-hw" cx="16" cy="44" r="4"/><text x="28" y="48">lidar 10 Hz, filtered</text>
+  <circle class="d-hw" cx="16" cy="62" r="4"/><text x="28" y="66">serial bridge → odometry</text>
+  <circle class="d-hw" cx="16" cy="80" r="4"/><text x="28" y="84">slip + gyro-drift fixes</text>
+</g>
+<g class="node f-sense f-decide f-team f-local" transform="translate(500,118)">
+  <rect class="box" width="190" height="96" rx="7"/>
+  <text class="nt" x="12" y="24">Where am I</text>
+  <circle class="d-hw" cx="16" cy="44" r="4"/><text x="28" y="48">EKF: wheels + gyro</text>
+  <circle class="d-hw" cx="16" cy="62" r="4"/><text x="28" y="66">SLAM: its own map</text>
+  <circle class="d-hw" cx="16" cy="80" r="4"/><text x="28" y="84">pose + uncertainty σ</text>
+</g>
+<g class="node f-decide f-team f-local" transform="translate(750,118)">
+  <rect class="box" width="190" height="96" rx="7"/>
+  <text class="nt" x="12" y="24">Camera</text>
+  <rect class="d-sim" x="12.6" y="40.6" width="6.8" height="6.8" transform="rotate(45 16 44)"/><text x="28" y="48">reads AprilTags</text>
+  <rect class="d-sw" x="12.6" y="58.6" width="6.8" height="6.8"/><text x="28" y="66">change detector</text>
+  <rect class="d-sw" x="12.6" y="76.6" width="6.8" height="6.8"/><text x="28" y="84">vision-model check</text>
+</g>
+<g class="node f-sense f-decide f-local" transform="translate(250,290)">
+  <rect class="box" width="190" height="96" rx="7"/>
+  <text class="nt" x="12" y="24">Driving</text>
+  <circle class="d-hw" cx="16" cy="44" r="4"/><text x="28" y="48">frontier explorer</text>
+  <rect class="d-sim" x="12.6" y="58.6" width="6.8" height="6.8" transform="rotate(45 16 62)"/><text x="28" y="66">command mux</text>
+  <rect class="d-sw" x="12.6" y="76.6" width="6.8" height="6.8"/><text x="28" y="84">decision executor</text>
+</g>
+<g class="node f-decide f-local" transform="translate(500,290)">
+  <rect class="box" width="190" height="96" rx="7"/>
+  <text class="nt" x="12" y="24">Deciding</text>
+  <rect class="d-sw" x="12.6" y="40.6" width="6.8" height="6.8"/><text x="28" y="48">reflexes first</text>
+  <rect class="d-sw" x="12.6" y="58.6" width="6.8" height="6.8"/><text x="28" y="66">local 3B model</text>
+  <rect class="d-sw" x="12.6" y="76.6" width="6.8" height="6.8"/><text x="28" y="84">checker + veto</text>
+</g>
+<g class="node f-decide f-team f-local" transform="translate(750,290)">
+  <rect class="box" width="190" height="96" rx="7"/>
+  <text class="nt" x="12" y="24">Team memory</text>
+  <rect class="d-sw" x="12.6" y="40.6" width="6.8" height="6.8"/><text x="28" y="48">checkpoints (CRDT)</text>
+  <rect class="d-sw" x="12.6" y="58.6" width="6.8" height="6.8"/><text x="28" y="66">task auction</text>
+  <rect class="d-sw" x="12.6" y="76.6" width="6.8" height="6.8"/><text x="28" y="84">territory if link drops</text>
+</g>
+
+<!-- laptop nodes -->
+<g class="node f-sense f-team" transform="translate(996,118)">
+  <rect class="box" width="184" height="96" rx="7"/>
+  <text class="nt" x="12" y="24">Map joining</text>
+  <rect class="d-sim" x="12.6" y="40.6" width="6.8" height="6.8" transform="rotate(45 16 44)"/><text x="28" y="48">handshake: tags → offset</text>
+  <rect class="d-sim" x="12.6" y="58.6" width="6.8" height="6.8" transform="rotate(45 16 62)"/><text x="28" y="66">map merger → team map</text>
+  <rect class="d-sim" x="12.6" y="76.6" width="6.8" height="6.8" transform="rotate(45 16 80)"/><text x="28" y="84">rendezvous: meet, face</text>
+</g>
+<g class="node f-team" transform="translate(996,290)">
+  <rect class="box" width="184" height="96" rx="7"/>
+  <text class="nt" x="12" y="24">Mission planner</text>
+  <circle class="d-plan" cx="16" cy="44" r="3.4"/><text x="28" y="48">request → task graph</text>
+  <circle class="d-plan" cx="16" cy="62" r="3.4"/><text x="28" y="66">checked like any plan</text>
+  <circle class="d-plan" cx="16" cy="80" r="3.4"/><text x="28" y="84">revised after failures</text>
+</g>
+
+<!-- rover 2 nodes -->
+<g class="node f-team" transform="translate(250,490)">
+  <rect class="box" width="190" height="60" rx="7"/>
+  <text class="nt" x="12" y="24">Camera + tag cube</text>
+  <rect class="d-sim" x="12.6" y="40.6" width="6.8" height="6.8" transform="rotate(45 16 44)"/><text x="28" y="48">tag IDs 10–13</text>
+</g>
+<g class="node f-team" transform="translate(500,490)">
+  <rect class="box" width="190" height="60" rx="7"/>
+  <text class="nt" x="12" y="24">Own SLAM map</text>
+  <rect class="d-sim" x="12.6" y="40.6" width="6.8" height="6.8" transform="rotate(45 16 44)"/><text class="mono" x="28" y="48">rover2/map</text>
+</g>
+<g class="node f-team" transform="translate(750,490)">
+  <rect class="box" width="190" height="60" rx="7"/>
+  <text class="nt" x="12" y="24">Team memory copy</text>
+  <rect class="d-sw" x="12.6" y="40.6" width="6.8" height="6.8"/><text x="28" y="48">same places + tasks</text>
+</g>
+</svg>
+  </figure>
+  <p class="hint">On a phone, scroll the diagrams sideways.</p>
+  <div class="steps" data-steps="all"><p>Pick a path above to follow one kind of information. Arrows show what each part sends to the next, and the mark before each line shows how far along that part is.</p></div>
+  <div class="steps" data-steps="sense" hidden><ol>
+    <li>The ESP32 counts wheel-encoder ticks and reads the gyro, then sends both to the Orange Pi over USB.</li>
+    <li>The serial bridge turns ticks into odometry and removes wheel slip. The scan filter cleans each lidar scan.</li>
+    <li>The EKF blends wheels and gyro into a smooth position. slam_toolbox matches scans to the map and corrects the drift.</li>
+    <li>The map and position go to the explorer, which drives toward the edge of what has been seen, and to the decision layer.</li>
+    <li>The rover's own map also goes to the laptop, which joins it with the other rover's map.</li>
+  </ol></div>
+  <div class="steps" data-steps="decide" hidden><ol>
+    <li>The decision layer reads the rover's position and uncertainty, anything the camera flagged, and the team's shared places and tasks.</li>
+    <li>Reflexes go first. If nothing urgent fires, the local model proposes an action, the checker rules on it, and the veto takes a last look.</li>
+    <li>An accepted action goes to the executor, which turns it into speed commands.</li>
+    <li>The ESP32 runs a speed loop for each wheel and stops the motors if commands stop for 500 ms.</li>
+  </ol></div>
+  <div class="steps" data-steps="team" hidden><ol>
+    <li>Each rover builds its own map. Rover 2 is still being built, so today this runs in simulation.</li>
+    <li>Cameras spot the other rover's AprilTag, and the laptop works out where one map sits inside the other.</li>
+    <li>The laptop merges both maps into one team map.</li>
+    <li>Places and tasks sync between the rovers, so each holds the same copy without a coordinator.</li>
+    <li>Planned: the mission planner adds tasks to that shared list.</li>
+  </ol></div>
+  <div class="steps" data-steps="nolink" hidden><p>Highlighted: everything that keeps running on a rover with no Wi-Fi. Red dashed: links that stop until Wi-Fi returns. After 10 seconds without hearing a teammate, each rover works only inside its own territory, so no task gets done twice.</p></div>
+</section>
+
+<!-- ============================================================ LASER TO MAP -->
+<section id="laser">
+  <h2>From laser to map</h2>
+  <p class="lead">Two estimates of where the rover is run at the same time, and SLAM ties them to the lidar.</p>
+  <figure class="fig" style="--minw:900px">
+<svg viewBox="0 0 1140 392" role="img" aria-label="SLAM pipeline on one rover. Lidar scans go through a scan filter to slam_toolbox. Encoder ticks and gyro go from the ESP32 through the serial bridge and the EKF to slam_toolbox. slam_toolbox outputs the map used by the explorer, the decision layer and the laptop.">
+<defs>
+  <marker id="s-a" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto"><path class="mk" d="M0,0L10,5L0,10z"/></marker>
+</defs>
+<g class="edge"><path d="M190,70H260" marker-end="url(#s-a)"/><text class="mono" x="225" y="62">scan_raw</text></g>
+<g class="edge"><path d="M430,70H750" marker-end="url(#s-a)"/><text class="mono" x="590" y="62">scan · 10 Hz</text></g>
+<g class="edge"><path d="M190,248H260" marker-end="url(#s-a)"/><text x="225" y="230">ticks 50 Hz</text><text x="225" y="242">gyro 100 Hz</text></g>
+<g class="edge"><path d="M430,248H500" marker-end="url(#s-a)"/><text class="mono" x="465" y="230">odom</text><text class="mono" x="465" y="242">imu</text></g>
+<g class="edge"><path d="M660,248H750" marker-end="url(#s-a)"/><text x="705" y="240">smooth pose</text></g>
+<g class="edge"><path d="M950,165H995" marker-end="url(#s-a)"/><text class="mono" x="972" y="157">map</text></g>
+<g class="edge"><path d="M550,361H650" marker-end="url(#s-a)"/><text class="mono" x="600" y="354">slam_toolbox</text><text x="600" y="376">jumps</text></g>
+<g class="edge"><path d="M720,361H820" marker-end="url(#s-a)"/><text x="770" y="354">EKF</text><text x="770" y="376">smooth</text></g>
+<g class="edge"><path d="M910,361H990" marker-end="url(#s-a)"/><text x="950" y="354">fixed</text><text x="950" y="376">mounts</text></g>
+
+<g class="node" transform="translate(20,30)">
+  <rect class="box" width="170" height="80" rx="7"/>
+  <text class="nt" x="12" y="24">RPLIDAR C1</text>
+  <circle class="d-hw" cx="16" cy="44" r="4"/><text x="28" y="48">2D, 360°, one plane</text>
+  <circle class="d-hw" cx="16" cy="62" r="4"/><text x="28" y="66">10 scans a second</text>
+</g>
+<g class="node" transform="translate(260,30)">
+  <rect class="box" width="170" height="80" rx="7"/>
+  <text class="nt" x="12" y="24">Scan filter</text>
+  <circle class="d-hw" cx="16" cy="44" r="4"/><text x="28" y="48">drops deck-beam hits</text>
+  <text class="mono" x="12" y="68">scan_raw → scan</text>
+</g>
+<g class="node" transform="translate(20,200)">
+  <rect class="box" width="170" height="96" rx="7"/>
+  <text class="nt" x="12" y="24">ESP32</text>
+  <circle class="d-hw" cx="16" cy="44" r="4"/><text x="28" y="48">1,540 ticks per turn</text>
+  <circle class="d-hw" cx="16" cy="62" r="4"/><text x="28" y="66">gyro, median of 5</text>
+  <circle class="d-hw" cx="16" cy="80" r="4"/><text x="28" y="84">PID per wheel, 50 Hz</text>
+</g>
+<g class="node" transform="translate(260,200)">
+  <rect class="box" width="170" height="96" rx="7"/>
+  <text class="nt" x="12" y="24">Serial bridge</text>
+  <circle class="d-hw" cx="16" cy="44" r="4"/><text x="28" y="48">keeps the smaller count</text>
+  <circle class="d-hw" cx="16" cy="62" r="4"/><text x="28" y="66">gyro bias when still</text>
+  <circle class="d-hw" cx="16" cy="80" r="4"/><text x="28" y="84">0.5 s command timeout</text>
+</g>
+<g class="node" transform="translate(500,200)">
+  <rect class="box" width="160" height="96" rx="7"/>
+  <text class="nt" x="12" y="24">EKF</text>
+  <circle class="d-hw" cx="16" cy="44" r="4"/><text x="28" y="48">wheel speed + gyro</text>
+  <circle class="d-hw" cx="16" cy="62" r="4"/><text x="28" y="66">30 Hz, smooth</text>
+  <circle class="d-hw" cx="16" cy="80" r="4"/><text x="28" y="84">drifts slowly</text>
+</g>
+<g class="node" transform="translate(750,30)">
+  <rect class="box" width="200" height="266" rx="7"/>
+  <text class="nt" x="12" y="24">slam_toolbox</text>
+  <circle class="d-hw" cx="16" cy="44" r="4"/><text x="28" y="48">matches each scan</text>
+  <circle class="d-hw" cx="16" cy="62" r="4"/><text x="28" y="66">pose graph</text>
+  <circle class="d-hw" cx="16" cy="80" r="4"/><text x="28" y="84">loop closure</text>
+  <circle class="d-hw" cx="16" cy="98" r="4"/><text x="28" y="102">corrects the drift</text>
+  <text class="sub" x="12" y="232">Known issue: drops scans</text>
+  <text class="sub" x="12" y="248">taken while spinning</text>
+</g>
+<g class="node" transform="translate(995,110)">
+  <rect class="box" width="130" height="110" rx="7"/>
+  <text class="nt" x="12" y="24">Used by</text>
+  <text x="12" y="48">explorer</text>
+  <text x="12" y="68">decision layer</text>
+  <text x="12" y="88">laptop merger</text>
+</g>
+<text class="gs" x="20" y="366">Frame chain (TF)</text>
+<g class="node" transform="translate(480,345)"><rect class="box" width="70" height="32" rx="6"/><text class="mono" x="35" y="21" text-anchor="middle">map</text></g>
+<g class="node" transform="translate(650,345)"><rect class="box" width="70" height="32" rx="6"/><text class="mono" x="35" y="21" text-anchor="middle">odom</text></g>
+<g class="node" transform="translate(820,345)"><rect class="box" width="90" height="32" rx="6"/><text class="mono" x="45" y="21" text-anchor="middle">base_link</text></g>
+<g class="node" transform="translate(990,345)"><rect class="box" width="135" height="32" rx="6"/><text class="mono" x="67" y="21" text-anchor="middle">laser · imu</text></g>
+</svg>
+    <figcaption>The EKF gives a smooth position that slowly drifts. slam_toolbox matches each scan against the map so far and publishes a correction that can jump. The frame chain at the bottom shows which program owns each link. Found in simulation: the ROS 2 Humble version of slam_toolbox ignores scans taken while the rover turns on the spot.</figcaption>
+  </figure>
+  <div class="steps"><ol>
+    <li>The ESP32 counts encoder ticks (1,540 per wheel turn) and reads the gyro, then sends text lines over USB: ticks 50 times a second, gyro 100 times.</li>
+    <li>The serial bridge turns ticks into odometry. Both wheels on one side should travel the same distance, so it keeps the smaller count and treats the rest as slip. It re-estimates gyro bias only while the rover stands still.</li>
+    <li>The EKF blends wheel speed with the gyro's turn rate 30 times a second.</li>
+    <li>slam_toolbox matches each filtered scan to the map, adds it to a pose graph, and closes a loop when it recognises a place. Its map and corrected pose go to the explorer, the decision layer and the laptop.</li>
+  </ol></div>
+</section>
+
+<!-- ============================================================ DECIDE -->
+<section id="decide">
+  <h2>How one rover decides</h2>
+  <p class="lead">A language model sits in the middle of the decision path, with plain code before and after it. Code handles anything that has one right answer, and the model only proposes.</p>
+  <figure class="fig" style="--minw:780px">
+<svg viewBox="0 0 1000 786" role="img" aria-label="Decision path. Inputs go to reflexes, advisories, the local model, the checker and a reflex veto, then to the executor and the wheels. A reflex that fires skips straight to a forced action. Refused proposals are remembered by the model. Goal arbitration, a progress monitor, a recovery ladder and the task auction are built and tested but not yet in the ROS node.">
+<defs>
+  <marker id="d-a" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto"><path class="mk" d="M0,0L10,5L0,10z"/></marker>
+</defs>
+<!-- main path -->
+<g class="edge"><path d="M260,104V132" marker-end="url(#d-a)"/></g>
+<g class="edge"><path d="M260,210V244" marker-end="url(#d-a)"/><text class="st" x="270" y="231">nothing urgent</text></g>
+<g class="edge"><path d="M260,306V340" marker-end="url(#d-a)"/></g>
+<g class="edge"><path d="M260,418V452" marker-end="url(#d-a)"/><text class="st" x="270" y="439">proposals</text></g>
+<g class="edge"><path d="M260,530V564" marker-end="url(#d-a)"/><text class="st" x="270" y="551">accepted</text></g>
+<g class="edge"><path d="M260,626V660" marker-end="url(#d-a)"/><text class="st" x="270" y="647">chosen action</text></g>
+<g class="edge"><path d="M480,171H516V715H480" marker-end="url(#d-a)"/><text class="st" x="524" y="438">reflex fired:</text><text class="st" x="524" y="452">forced action</text></g>
+<g class="edge"><path d="M40,491H20V379H40" marker-end="url(#d-a)"/><text transform="rotate(-90 13 435)" x="13" y="435">refusals remembered</text></g>
+
+<g class="node" transform="translate(40,20)">
+  <rect class="box in" width="440" height="84" rx="7"/>
+  <text class="nt" x="12" y="24">Inputs to decision_node · every 300 s</text>
+  <text class="mono" x="12" y="45">odom · scan · battery_state · diagnostics</text>
+  <text class="mono" x="12" y="61">anomaly_detected · swarm/peer_status · mission/state</text>
+  <text class="mono" x="12" y="77">emergency_stop · comms/tier · operator/note</text>
+</g>
+<g class="node" transform="translate(40,132)">
+  <rect class="box" width="440" height="78" rx="7"/>
+  <rect class="d-sw" x="12.6" y="14.6" width="6.8" height="6.8"/><text class="nt" x="28" y="22">1 · Reflexes act first</text>
+  <text x="12" y="44">e-stop, drive fault, battery at or under 15% or unknown, lost pose:</text>
+  <text x="12" y="62">forced action now. On a LoRa-only link, the model is skipped.</text>
+</g>
+<g class="node" transform="translate(40,244)">
+  <rect class="box" width="440" height="62" rx="7"/>
+  <rect class="d-sw" x="12.6" y="14.6" width="6.8" height="6.8"/><text class="nt" x="28" y="22">2 · Advisories</text>
+  <text x="12" y="44">low battery, weak pose, deadline, poor link → added to the prompt</text>
+</g>
+<g class="node" transform="translate(40,340)">
+  <rect class="box" width="440" height="78" rx="7"/>
+  <rect class="d-sw" x="12.6" y="14.6" width="6.8" height="6.8"/><text class="nt" x="28" y="22">3 · Local model (granite4.2:3b, on the rover)</text>
+  <text x="12" y="44">proposes actions as JSON; the schema lists only ids that exist</text>
+  <text x="12" y="62">laptop test: 40.1 s → 4.4 s a decision; 54% → 89% accepted</text>
+</g>
+<g class="node" transform="translate(40,452)">
+  <rect class="box" width="440" height="78" rx="7"/>
+  <rect class="d-sw" x="12.6" y="14.6" width="6.8" height="6.8"/><text class="nt" x="28" y="22">4 · Checker (envelope)</text>
+  <text x="12" y="44">checks schema, tier, link, map and CRCE</text>
+  <text x="12" y="62">→ accept, ask a human, or reject with a reason code</text>
+</g>
+<g class="node" transform="translate(40,564)">
+  <rect class="box" width="440" height="62" rx="7"/>
+  <rect class="d-sw" x="12.6" y="14.6" width="6.8" height="6.8"/><text class="nt" x="28" y="22">5 · Reflex veto</text>
+  <text x="12" y="44">no motion while faulted or lost; no trip the battery can't finish</text>
+</g>
+<g class="node" transform="translate(40,660)">
+  <rect class="box" width="440" height="110" rx="7"/>
+  <rect class="d-sw" x="12.6" y="14.6" width="6.8" height="6.8"/><text class="nt" x="28" y="22">Executor → wheels</text>
+  <text x="12" y="44"><tspan class="mono">/decision/action</tspan> → executor at 10 Hz (dry-run by default)</text>
+  <text x="12" y="62">turns, then drives; BLOCKED keeps the goal, TIMED_OUT ends it</text>
+  <text x="12" y="80"><tspan class="mono">/cmd_vel</tspan> → serial bridge (stops after 0.5 s without a command)</text>
+  <text x="12" y="98">→ ESP32 (stops the motors after 500 ms)</text>
+</g>
+
+<!-- right column -->
+<rect class="grp" x="600" y="20" width="390" height="694" rx="12"/>
+<text class="gl" x="616" y="46">Built and tested<tspan class="gs" dx="6">not yet in the ROS node</tspan></text>
+<g class="node" transform="translate(620,62)">
+  <rect class="box" width="350" height="234" rx="7"/>
+  <rect class="d-sw" x="12.6" y="14.6" width="6.8" height="6.8"/><text class="nt" x="28" y="22">Goal arbitration</text>
+  <text x="12" y="44">1. Feasible? The battery must cover the trip there</text>
+  <text x="12" y="60">and back, plus 30% extra and a 10% reserve.</text>
+  <text x="12" y="82">2. Then the lowest tier wins:</text>
+  <rect class="tier" x="12" y="92" width="326" height="20" rx="4"/><text x="20" y="106">0 · safety: e-stop, faults, obstacles</text>
+  <rect class="tier" x="12" y="115" width="326" height="20" rx="4" fill-opacity=".82"/><text x="20" y="129">1 · survival: go home, relocalize, recover</text>
+  <rect class="tier" x="12" y="138" width="326" height="20" rx="4" fill-opacity=".64"/><text x="20" y="152">2 · team: meet, help a peer, find signal</text>
+  <rect class="tier" x="12" y="161" width="326" height="20" rx="4" fill-opacity=".46"/><text x="20" y="175">3 · mission: inspect, waypoints, explore</text>
+  <rect class="tier" x="12" y="184" width="326" height="20" rx="4" fill-opacity=".28"/><text x="20" y="198">4 · maintenance: patrol, wait</text>
+  <text x="12" y="222">3. Utility only breaks ties inside a tier.</text>
+</g>
+<g class="node" transform="translate(620,316)">
+  <rect class="box" width="350" height="96" rx="7"/>
+  <rect class="d-sw" x="12.6" y="14.6" width="6.8" height="6.8"/><text class="nt" x="28" y="22">Progress monitor</text>
+  <text x="12" y="44">stalled: under 25% of possible progress in 8 s</text>
+  <text x="12" y="62">slipping: over 35% of wheel distance thrown out</text>
+  <text x="12" y="80">timed out: 2.5 × expected time + 15 s</text>
+</g>
+<g class="node" transform="translate(620,432)">
+  <rect class="box" width="350" height="132" rx="7"/>
+  <rect class="d-sw" x="12.6" y="14.6" width="6.8" height="6.8"/><text class="nt" x="28" y="22">Recovery ladder · each step once</text>
+  <text x="12" y="44">1 replan</text>
+  <text x="12" y="62">2 turn on the spot and rescan</text>
+  <text x="12" y="80">3 back up</text>
+  <text x="12" y="98">4 abandon: INCIDENT checkpoint, task released</text>
+  <text x="12" y="116">5 ask a person</text>
+</g>
+<g class="node" transform="translate(620,584)">
+  <rect class="box" width="350" height="110" rx="7"/>
+  <rect class="d-sw" x="12.6" y="14.6" width="6.8" height="6.8"/><text class="nt" x="28" y="22">Task auction · team</text>
+  <text x="12" y="44">bid = value − 0.10 × path cost</text>
+  <text x="12" y="62">tasks near a new award count for less</text>
+  <text x="12" y="80">every rover computes the same result</text>
+  <text x="12" y="98">silent 10 s → work only its own territory</text>
+</g>
+</svg>
+    <figcaption>Left: the decision node as it exists today, running every 300 seconds by default. Right: parts that are built and tested in software and still need wiring into the ROS node. The executor publishes <code>/cmd_vel</code> directly and isn't routed through the command mux yet, so it shouldn't drive while the explorer is driving.</figcaption>
+  </figure>
+  <div class="steps"><ol>
+    <li>Reflexes look at the rover's state alone. A flat battery or an e-stop has one correct response, so the model is never asked.</li>
+    <li>Rules that aren't urgent become advisories: facts written into the prompt for the model to weigh.</li>
+    <li>The model proposes actions. Its output is forced into a JSON schema whose id fields list only things that exist, so it can't invent a waypoint.</li>
+    <li>The checker judges each proposal. Refusals are remembered, and anything refused twice is named in the next prompt so the model stops repeating it.</li>
+    <li>The veto takes a last look against live state, then the executor drives toward the goal and the firmware's own timeouts stop the motors if commands go stale.</li>
+  </ol></div>
+</section>
+
+<!-- ============================================================ TEAM -->
+<section id="team">
+  <h2>How two rovers become a team</h2>
+  <p class="lead">Each rover maps on its own. When they meet, AprilTags tell the laptop exactly where one map sits inside the other. Everything here runs in simulation today, with the real team software.</p>
+  <figure class="fig" style="--minw:820px">
+<svg viewBox="0 0 1000 482" role="img" aria-label="Joining two maps. Each rover has a camera with a tag cube, a tag detector, its own SLAM map and a copy of team memory. On the laptop, the rendezvous node brings the rovers face to face, the handshake turns tag sightings into a map offset, and the map merger builds the team map. Team memories sync directly between rovers.">
+<defs>
+  <marker id="t-a" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto"><path class="mk" d="M0,0L10,5L0,10z"/></marker>
+  <marker id="t-as" viewBox="0 0 10 10" refX="0" refY="5" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto"><path class="mk" d="M10,0L0,5L10,10z"/></marker>
+</defs>
+<rect class="grp" x="20" y="50" width="290" height="420" rx="12"/>
+<text class="gl" x="36" y="76">Rover 1</text>
+<rect class="grp" x="690" y="50" width="290" height="420" rx="12"/>
+<text class="gl" x="706" y="76">Rover 2</text>
+<rect class="grp" x="380" y="50" width="240" height="350" rx="12"/>
+<text class="gl" x="396" y="76">Laptop</text>
+
+<g class="edge two"><path d="M165,90V30H835V90" marker-start="url(#t-as)" marker-end="url(#t-a)"/><text x="500" y="24">② and ④ each camera reads the other rover's tag</text></g>
+<g class="edge two"><path d="M294,144H396" marker-start="url(#t-as)" marker-end="url(#t-a)"/><text x="345" y="122">sightings in</text><text x="345" y="134">commands out</text></g>
+<g class="edge two"><path d="M706,144H604" marker-start="url(#t-as)" marker-end="url(#t-a)"/><text x="655" y="122">sightings in</text><text x="655" y="134">commands out</text></g>
+<g class="edge"><path d="M294,235H396" marker-end="url(#t-a)"/><text x="345" y="227">sightings + pose</text></g>
+<g class="edge"><path d="M706,235H604" marker-end="url(#t-a)"/><text x="655" y="227">sightings + pose</text></g>
+<g class="edge"><path d="M500,270V300" marker-end="url(#t-a)"/><text class="st" x="508" y="289">map offset</text></g>
+<g class="edge"><path d="M294,330H396" marker-end="url(#t-a)"/><text x="345" y="322">own map</text></g>
+<g class="edge"><path d="M706,330H604" marker-end="url(#t-a)"/><text x="655" y="322">own map</text></g>
+<g class="edge two"><path d="M294,422H706" marker-start="url(#t-as)" marker-end="url(#t-a)"/><text x="500" y="414">⑥ places + tasks sync (CRDT)</text></g>
+
+<g class="node" transform="translate(36,90)">
+  <rect class="box" width="258" height="80" rx="7"/>
+  <text class="nt" x="12" y="24">Camera + tag cube</text>
+  <rect class="d-sim" x="12.6" y="40.6" width="6.8" height="6.8" transform="rotate(45 16 44)"/><text x="28" y="48">tag IDs 0–3, 9.6 cm tags</text>
+  <rect class="d-sim" x="12.6" y="58.6" width="6.8" height="6.8" transform="rotate(45 16 62)"/><text x="28" y="66">mux: team commands beat explorer</text>
+</g>
+<g class="node" transform="translate(36,200)">
+  <rect class="box" width="258" height="70" rx="7"/>
+  <text class="nt" x="12" y="24">Tag detector + SLAM pose</text>
+  <rect class="d-sim" x="12.6" y="40.6" width="6.8" height="6.8" transform="rotate(45 16 44)"/><text x="28" y="48">each sighting, and where it was</text>
+</g>
+<g class="node" transform="translate(36,300)">
+  <rect class="box" width="258" height="60" rx="7"/>
+  <text class="nt" x="12" y="24">① Own SLAM map</text>
+  <rect class="d-sim" x="12.6" y="36.6" width="6.8" height="6.8" transform="rotate(45 16 40)"/><text class="mono" x="28" y="44">rover1/map</text>
+</g>
+<g class="node" transform="translate(36,392)">
+  <rect class="box" width="258" height="60" rx="7"/>
+  <text class="nt" x="12" y="24">Team memory copy</text>
+  <rect class="d-sw" x="12.6" y="36.6" width="6.8" height="6.8"/><text x="28" y="44">places + tasks</text>
+</g>
+
+<g class="node" transform="translate(706,90)">
+  <rect class="box" width="258" height="80" rx="7"/>
+  <text class="nt" x="12" y="24">Camera + tag cube</text>
+  <rect class="d-sim" x="12.6" y="40.6" width="6.8" height="6.8" transform="rotate(45 16 44)"/><text x="28" y="48">tag IDs 10–13, 9.6 cm tags</text>
+  <rect class="d-sim" x="12.6" y="58.6" width="6.8" height="6.8" transform="rotate(45 16 62)"/><text x="28" y="66">mux: team commands beat explorer</text>
+</g>
+<g class="node" transform="translate(706,200)">
+  <rect class="box" width="258" height="70" rx="7"/>
+  <text class="nt" x="12" y="24">Tag detector + SLAM pose</text>
+  <rect class="d-sim" x="12.6" y="40.6" width="6.8" height="6.8" transform="rotate(45 16 44)"/><text x="28" y="48">each sighting, and where it was</text>
+</g>
+<g class="node" transform="translate(706,300)">
+  <rect class="box" width="258" height="60" rx="7"/>
+  <text class="nt" x="12" y="24">① Own SLAM map</text>
+  <rect class="d-sim" x="12.6" y="36.6" width="6.8" height="6.8" transform="rotate(45 16 40)"/><text class="mono" x="28" y="44">rover2/map: 180°, 11.3 m off</text>
+</g>
+<g class="node" transform="translate(706,392)">
+  <rect class="box" width="258" height="60" rx="7"/>
+  <text class="nt" x="12" y="24">Team memory copy</text>
+  <rect class="d-sw" x="12.6" y="36.6" width="6.8" height="6.8"/><text x="28" y="44">places + tasks</text>
+</g>
+
+<g class="node" transform="translate(396,90)">
+  <rect class="box" width="208" height="80" rx="7"/>
+  <text class="nt" x="12" y="24">③ Rendezvous</text>
+  <rect class="d-sim" x="12.6" y="40.6" width="6.8" height="6.8" transform="rotate(45 16 44)"/><text x="28" y="48">stops both rovers</text>
+  <rect class="d-sim" x="12.6" y="58.6" width="6.8" height="6.8" transform="rotate(45 16 62)"/><text x="28" y="66">closes to ~2.4 m, faces</text>
+</g>
+<g class="node" transform="translate(396,200)">
+  <rect class="box" width="208" height="70" rx="7"/>
+  <text class="nt" x="12" y="24">④ Handshake</text>
+  <rect class="d-sim" x="12.6" y="40.6" width="6.8" height="6.8" transform="rotate(45 16 44)"/><text x="28" y="48">tag centres → map offset</text>
+</g>
+<g class="node" transform="translate(396,300)">
+  <rect class="box" width="208" height="70" rx="7"/>
+  <text class="nt" x="12" y="24">⑤ Map merger</text>
+  <rect class="d-sim" x="12.6" y="40.6" width="6.8" height="6.8" transform="rotate(45 16 44)"/><text x="28" y="48"><tspan class="mono">/team/map</tspan>, once a second</text>
+</g>
+</svg>
+    <figcaption>Circled numbers match the steps below. The rendezvous node's commands outrank the explorer's in each rover's command mux (priority 50 against 10), so a meeting interrupts exploring and then hands control back.</figcaption>
+  </figure>
+  <div class="steps"><ol>
+    <li>Each rover builds its own map with its own SLAM, starting wherever it happens to be. In the simulation, rover 2's map starts 11.3 m away and turned 180°.</li>
+    <li>A camera catches the other rover's tag. That one-way sighting is weak, because it reads heading from the tilt of a 10 cm tag.</li>
+    <li>The rendezvous node stops both rovers. The one that saw the other drives to about 2.4 m away, and the seen rover turns to face it.</li>
+    <li>With both cameras on each other's tags, the handshake uses only where each tag's centre is, so heading comes from two 2.4 m lines. It publishes where rover 2's map sits inside rover 1's.</li>
+    <li>The map merger redraws both maps in one frame, once a second, as <code>/team/map</code>.</li>
+    <li>Places and tasks sync between the rovers' team memories as a CRDT. This step is tested in software and isn't running live yet.</li>
+  </ol></div>
+  <div class="result">
+    <p class="kicker">Simulation result, 8 October</p>
+    <p>Where the rovers met, the join was off by 5 cm. At rover 2's map origin, 4.95 m away, it was off by 10 cm and 0.7°. One-way sightings were about six times worse (51 cm and 4.1°). The merged map covered 139 m², against 106 m² and 100 m² for each rover alone.</p>
+  </div>
+</section>
+
+<!-- ============================================================ WIFI -->
+<section id="wifi">
+  <h2>When the Wi-Fi drops</h2>
+  <p class="lead">Coordinating takes far less data than mapping. A checkpoint is 15 bytes, and one lidar scan is about 1.5 kB. So the plan is to keep coordinating over a slower radio when Wi-Fi fails.</p>
+  <figure class="fig" style="--minw:760px">
+<svg viewBox="0 0 1000 250" role="img" aria-label="Three link tiers. Tier 1, healthy Wi-Fi: rovers stream to the laptop, which joins the maps. Tier 2, degraded Wi-Fi: scans only at a lower rate, no images. Tier 3, LoRa only: 15-byte checkpoints, driving on the last good map, local model skipped.">
+<defs>
+  <marker id="w-a" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto"><path class="mk" d="M0,0L10,5L0,10z"/></marker>
+</defs>
+<g class="edge"><path d="M300,115H360" marker-end="url(#w-a)"/><text x="330" y="107">worse</text></g>
+<g class="edge"><path d="M640,165H700" marker-end="url(#w-a)"/><text x="670" y="157">gone</text></g>
+<g class="node" transform="translate(20,20)">
+  <rect class="box" width="280" height="120" rx="7"/>
+  <text class="nt" x="12" y="24">Tier 1 · Wi-Fi healthy</text>
+  <circle class="d-hw" cx="16" cy="44" r="4"/><text x="28" y="48">rovers stream to the laptop</text>
+  <rect class="d-sim" x="12.6" y="58.6" width="6.8" height="6.8" transform="rotate(45 16 62)"/><text x="28" y="66">laptop joins the maps</text>
+  <rect class="d-sw" x="12.6" y="76.6" width="6.8" height="6.8"/><text x="28" y="84">camera frames on request</text>
+  <text class="sub" x="12" y="108">how it runs today</text>
+</g>
+<g class="node" transform="translate(360,70)">
+  <rect class="box" width="280" height="120" rx="7"/>
+  <text class="nt" x="12" y="24">Tier 2 · Wi-Fi degraded</text>
+  <circle class="d-plan" cx="16" cy="44" r="3.4"/><text x="28" y="48">scans only, at a lower rate</text>
+  <circle class="d-plan" cx="16" cy="62" r="3.4"/><text x="28" y="66">no camera images</text>
+  <circle class="d-plan" cx="16" cy="80" r="3.4"/><text x="28" y="84">team map gets staler</text>
+</g>
+<g class="node" transform="translate(700,120)">
+  <rect class="box" width="280" height="120" rx="7"/>
+  <text class="nt" x="12" y="24">Tier 3 · LoRa only</text>
+  <circle class="d-plan" cx="16" cy="44" r="3.4"/><text x="28" y="48">15-byte checkpoints</text>
+  <circle class="d-plan" cx="16" cy="62" r="3.4"/><text x="28" y="66">drive on the last good map</text>
+  <rect class="d-sw" x="12.6" y="76.6" width="6.8" height="6.8"/><text x="28" y="84">local model is skipped</text>
+</g>
+</svg>
+    <figcaption>Tiers 2 and 3 are planned, and experiment E4 will measure them. The reflex that skips the model on a LoRa-only link already exists in software.</figcaption>
+  </figure>
+  <div class="result">
+    <p class="kicker">If a teammate goes quiet</p>
+    <p>After 10 seconds of silence, each rover assumes the network has split and takes only unclaimed tasks inside its own territory, a Voronoi cell around its home position. Silence never hands work over, because a dead link and a dead robot look the same. In software tests this gave no double-assigned tasks in 1,800 random splits, against 69 in 600 when rovers took over a quiet teammate's work after a timeout.</p>
+  </div>
+  <div class="two">
+    <div><h3>Keeps working on each rover</h3><ul>
+      <li>Firmware, speed loops and the motor watchdog</li>
+      <li>Sensing, the EKF and SLAM</li>
+      <li>Exploring and driving</li>
+      <li>Reflexes, the local model and the checker</li>
+      <li>Its own copy of team memory, inside its own territory</li>
+    </ul></div>
+    <div><h3>Stops until the link returns</h3><ul>
+      <li>Joining maps and the team map, which run on the laptop</li>
+      <li>Syncing places and tasks between rovers (LoRa is planned for this)</li>
+      <li>The mission planner, which is planned</li>
+      <li>Watching the map from the laptop</li>
+    </ul></div>
+  </div>
+</section>
+
+<!-- ============================================================ REQUEST -->
+<section id="request">
+  <p class="kicker">Planned</p>
+  <h2>A request, end to end</h2>
+  <p class="lead">The box-stacking example from the project goal. None of this is built yet. It shows how the existing pieces would combine once the mission planner, capabilities in the auction, and the arm exist.</p>
+  <figure class="fig" style="--minw:820px">
+<svg viewBox="0 0 1000 576" role="img" aria-label="Planned sequence. You ask to stack the boxes smallest first. The mission planner builds a task graph, the checker approves it, and the auction gives the search to the scout rover. The scout marks each box as a checkpoint and posts a carry task, which the auction gives to the arm rover. The arm rover drives there, finishes the approach with its camera, and reports back; lessons are shared with evidence.">
+<defs>
+  <marker id="q-a" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto"><path class="mk" d="M0,0L10,5L0,10z"/></marker>
+</defs>
+<line class="life" x1="80" y1="52" x2="80" y2="560"/>
+<line class="life" x1="270" y1="52" x2="270" y2="560"/>
+<line class="life" x1="470" y1="52" x2="470" y2="560"/>
+<line class="life" x1="680" y1="52" x2="680" y2="560"/>
+<line class="life" x1="890" y1="52" x2="890" y2="560"/>
+<g class="node"><rect class="box" x="20" y="16" width="120" height="36" rx="7"/><text class="nt" x="80" y="39" text-anchor="middle">You</text></g>
+<g class="node"><rect class="box" x="190" y="16" width="160" height="36" rx="7"/><text class="nt" x="270" y="39" text-anchor="middle">Mission planner</text></g>
+<g class="node"><rect class="box" x="385" y="16" width="170" height="36" rx="7"/><text class="nt" x="470" y="39" text-anchor="middle">Checker + auction</text></g>
+<g class="node"><rect class="box" x="610" y="16" width="140" height="36" rx="7"/><text class="nt" x="680" y="39" text-anchor="middle">Scout rover</text></g>
+<g class="node"><rect class="box" x="820" y="16" width="140" height="36" rx="7"/><text class="nt" x="890" y="39" text-anchor="middle">Arm rover</text></g>
+
+<g class="edge planned"><path d="M80,96H270" marker-end="url(#q-a)"/><text x="175" y="88">“stack these, smallest first”</text></g>
+<g class="node"><rect class="notebox" x="282" y="116" width="176" height="40" rx="6"/><text x="292" y="132">task graph: find, measure,</text><text x="292" y="148">pick, place, repeat</text></g>
+<g class="edge planned"><path d="M270,190H470" marker-end="url(#q-a)"/><text x="370" y="182">graph, checked like any plan</text></g>
+<g class="edge planned"><path d="M470,240H680" marker-end="url(#q-a)"/><text x="575" y="232">find the boxes (needs a camera)</text></g>
+<g class="node"><rect class="notebox" x="688" y="258" width="190" height="40" rx="6"/><text x="698" y="274">explores; marks each box</text><text x="698" y="290">as a labelled checkpoint</text></g>
+<g class="edge planned"><path d="M680,330H470" marker-end="url(#q-a)"/><text x="575" y="322">new task: carry box 1 (needs an arm)</text></g>
+<g class="edge planned"><path d="M470,380H890" marker-end="url(#q-a)"/><text x="680" y="372">auction awards it to the arm rover</text></g>
+<g class="node"><rect class="notebox" x="700" y="398" width="182" height="40" rx="6"/><text x="710" y="414">map gets within 10–30 cm;</text><text x="710" y="430">camera does the last cm</text></g>
+<g class="edge planned"><path d="M890,470H270" marker-end="url(#q-a)"/><text x="580" y="462">done, or failed: the planner revises the graph</text></g>
+<g class="edge planned"><path d="M890,530H680" marker-end="url(#q-a)"/><text x="785" y="522">lesson + evidence, shared</text></g>
+</svg>
+    <figcaption>The arm rover never grasps from map coordinates alone: the map gets it within about 10 to 30 cm, and the camera, or a tag on the box, does the rest. Lessons from the run are saved with the evidence behind them and shared, and other rovers treat them as untrusted.</figcaption>
+  </figure>
+</section>
+
+<!-- ============================================================ FEATURES -->
+<section id="features">
+  <h2>Every feature</h2>
+  <p class="lead">Every part of the project, grouped by what it does. Filter by status to see what's on the real rover, what runs in simulation, what's tested software, and what's planned.</p>
+  <div class="ffilter" role="group" aria-label="Filter features by status">
+    <button type="button" data-s="all" aria-pressed="true">All<span class="n"></span></button>
+    <button type="button" data-s="hw" aria-pressed="false">On the rover<span class="n"></span></button>
+    <button type="button" data-s="sim" aria-pressed="false">Simulation<span class="n"></span></button>
+    <button type="button" data-s="sw" aria-pressed="false">Software<span class="n"></span></button>
+    <button type="button" data-s="plan" aria-pressed="false">Planned<span class="n"></span></button>
+  </div>
+  <div class="fmap">
+    <div class="branch"><h3>Body and firmware<small></small></h3><ul>
+      <li data-s="hw"><span class="dot hw"></span>Four gear motors with quadrature encoders, 1,540 ticks per wheel turn</li>
+      <li data-s="hw"><span class="dot hw"></span>ESP32 firmware: a PID speed loop per wheel at 50 Hz</li>
+      <li data-s="hw"><span class="dot hw"></span>Motors stop if no command arrives for 500 ms</li>
+      <li data-s="hw"><span class="dot hw"></span>MPU-6050 gyro with a median-of-5 filter</li>
+      <li data-s="hw"><span class="dot hw"></span>Plain-text serial protocol at 115200 baud</li>
+      <li data-s="plan"><span class="dot plan"></span>Battery monitor (blocks autonomy until fitted)</li>
+      <li data-s="plan"><span class="dot plan"></span>Channel B on the front-right encoder</li>
+      <li data-s="plan"><span class="dot plan"></span>Physical e-stop button</li>
+      <li data-s="plan"><span class="dot plan"></span>Robotic arm</li>
+      <li data-s="plan"><span class="dot plan"></span>LoRa radio</li>
+      <li data-s="plan"><span class="dot plan"></span>Inductive charging pads</li>
+    </ul></div>
+    <div class="branch"><h3>Knowing where it is<small></small></h3><ul>
+      <li data-s="hw"><span class="dot hw"></span>Scan filter removes the rover's own deck beams</li>
+      <li data-s="hw"><span class="dot hw"></span>Slip rejection: keep the smaller count on each side</li>
+      <li data-s="hw"><span class="dot hw"></span>Gyro bias re-estimated only when standing still</li>
+      <li data-s="hw"><span class="dot hw"></span>EKF (robot_localization) blending wheels and gyro at 30 Hz</li>
+      <li data-s="hw"><span class="dot hw"></span>slam_toolbox 2D SLAM with loop closure</li>
+      <li data-s="hw"><span class="dot hw"></span>Track width calibrated from laser-only rotation: 0.42 m</li>
+      <li data-s="plan"><span class="dot plan"></span>Scan-matching odometry as a third EKF input</li>
+      <li data-s="plan"><span class="dot plan"></span>Detect lost localization and stop to relocalize</li>
+      <li data-s="plan"><span class="dot plan"></span>Fix velocity spikes from the serial bridge (found in simulation)</li>
+      <li data-s="plan"><span class="dot plan"></span>Fix scans dropped while turning on the spot (found in simulation)</li>
+    </ul></div>
+    <div class="branch"><h3>Moving<small></small></h3><ul>
+      <li data-s="hw"><span class="dot hw"></span>Frontier exploration</li>
+      <li data-s="sw"><span class="dot sw"></span>A* planner on an inflated map</li>
+      <li data-s="sw"><span class="dot sw"></span>Executor: turn, then drive (dry-run by default)</li>
+      <li data-s="sim"><span class="dot sim"></span>Command mux: team commands outrank the explorer</li>
+      <li data-s="sw"><span class="dot sw"></span>Progress monitor: stalled, slipping, timed out</li>
+      <li data-s="sw"><span class="dot sw"></span>Recovery ladder: replan, rescan, back up, abandon, ask</li>
+      <li data-s="plan"><span class="dot plan"></span>Nav2 for point-to-point driving</li>
+      <li data-s="plan"><span class="dot plan"></span>Lane reservations in narrow rows</li>
+    </ul></div>
+    <div class="branch"><h3>Deciding<small></small></h3><ul>
+      <li data-s="sw"><span class="dot sw"></span>Reflexes act before the model</li>
+      <li data-s="sw"><span class="dot sw"></span>Local 3B model with schema-constrained JSON</li>
+      <li data-s="sw"><span class="dot sw"></span>Checker: accept, ask a human, or reject</li>
+      <li data-s="sw"><span class="dot sw"></span>Reflex veto on the chosen action</li>
+      <li data-s="sw"><span class="dot sw"></span>Memory of refused proposals</li>
+      <li data-s="sw"><span class="dot sw"></span>Goal arbitration with a battery round-trip check</li>
+      <li data-s="plan"><span class="dot plan"></span>Mission planner: request to task graph</li>
+      <li data-s="plan"><span class="dot plan"></span>Lessons from logs, shared between rovers</li>
+      <li data-s="plan"><span class="dot plan"></span>Benchmark the model on the Orange Pi</li>
+    </ul></div>
+    <div class="branch"><h3>Shared places<small></small></h3><ul>
+      <li data-s="sw"><span class="dot sw"></span>Checkpoints anchored to pose-graph vertices, so they move with loop closures</li>
+      <li data-s="sw"><span class="dot sw"></span>Created by rules: junctions, frontiers, uncertainty, corners</li>
+      <li data-s="sw"><span class="dot sw"></span>Replicated between rovers as a CRDT</li>
+      <li data-s="sw"><span class="dot sw"></span>Duplicates merged with covariance intersection</li>
+      <li data-s="sw"><span class="dot sw"></span>15-byte checkpoint packet</li>
+      <li data-s="plan"><span class="dot plan"></span>Checkpoint node running on the robot (M3)</li>
+      <li data-s="plan"><span class="dot plan"></span>Geometry fingerprint check after loop closures</li>
+    </ul></div>
+    <div class="branch"><h3>Team<small></small></h3><ul>
+      <li data-s="sim"><span class="dot sim"></span>Two rovers on one network, with separate topics and frames</li>
+      <li data-s="sim"><span class="dot sim"></span>AprilTag cube on each rover, read by apriltag_ros</li>
+      <li data-s="sim"><span class="dot sim"></span>Rendezvous: stop, approach, face each other</li>
+      <li data-s="sim"><span class="dot sim"></span>Handshake joins the maps (5 cm at the meeting point)</li>
+      <li data-s="sim"><span class="dot sim"></span>Map merger publishes /team/map</li>
+      <li data-s="sw"><span class="dot sw"></span>Deterministic task auction</li>
+      <li data-s="sw"><span class="dot sw"></span>Territory split when the link drops</li>
+      <li data-s="plan"><span class="dot plan"></span>Summon a rover to a checkpoint (M4)</li>
+      <li data-s="plan"><span class="dot plan"></span>Capabilities in the auction: arm, camera, reach</li>
+    </ul></div>
+    <div class="branch"><h3>Communication<small></small></h3><ul>
+      <li data-s="hw"><span class="dot hw"></span>ROS 2 over Wi-Fi between rover and laptop</li>
+      <li data-s="sw"><span class="dot sw"></span>Decision layer reads a link-quality tier</li>
+      <li data-s="plan"><span class="dot plan"></span>Zenoh bridge (DDS discovery is unreliable over Wi-Fi)</li>
+      <li data-s="plan"><span class="dot plan"></span>Clock sync with chrony</li>
+      <li data-s="plan"><span class="dot plan"></span>LoRa fallback for checkpoints</li>
+      <li data-s="plan"><span class="dot plan"></span>Priority lanes: small safety messages first</li>
+      <li data-s="plan"><span class="dot plan"></span>Authenticated messages (SROS2)</li>
+    </ul></div>
+    <div class="branch"><h3>Perception<small></small></h3><ul>
+      <li data-s="sw"><span class="dot sw"></span>Two-stage check: change detector, then vision model</li>
+      <li data-s="sw"><span class="dot sw"></span>Inventory plus allowlist instead of asking the model to judge</li>
+      <li data-s="sw"><span class="dot sw"></span>Detections placed on the map from camera bearing and lidar range</li>
+      <li data-s="sw"><span class="dot sw"></span>Anomaly database that merges repeat sightings</li>
+      <li data-s="plan"><span class="dot plan"></span>Bounding-box object detector</li>
+      <li data-s="plan"><span class="dot plan"></span>Measure where the vision model should run (E5)</li>
+    </ul></div>
+    <div class="branch"><h3>Testing and tools<small></small></h3><ul>
+      <li data-s="sim"><span class="dot sim"></span>Gazebo simulator running the real software, with a virtual ESP32</li>
+      <li data-s="sw"><span class="dot sw"></span>2,148 test assertions in 15 suites</li>
+      <li data-s="sw"><span class="dot sw"></span>Metrics: ATE, RPE, bootstrap confidence intervals</li>
+      <li data-s="sw"><span class="dot sw"></span>Trajectory recorder and run evaluator</li>
+      <li data-s="hw"><span class="dot hw"></span>RViz2 and a web map view on the laptop</li>
+      <li data-s="plan"><span class="dot plan"></span>Experiments E1 to E8 on the real rovers</li>
+      <li data-s="plan"><span class="dot plan"></span>A second test site, such as a hallway or storage room</li>
+      <li data-s="plan"><span class="dot plan"></span>One-command experiment runner</li>
+    </ul></div>
+  </div>
+</section>
+
+<footer>Checked on 11 October 2026 against docs/ARCHITECTURE.md, docs/DECISION_LAYER.md, docs/AGENT_ARCHITECTURE.md, docs/SIMULATION.md, docs/FUTURE_PLANS.md and the ROS 2 nodes and launch files. Simulation results come from Gazebo with the real rover software, not from the real rovers.</footer>
+</div>
+
+<script>
+(function(){
+  var fig = document.getElementById('ov-fig');
+  var flowBtns = document.querySelectorAll('.flows button');
+  var panels = document.querySelectorAll('[data-steps]');
+  function setFlow(f){
+    flowBtns.forEach(function(b){ b.setAttribute('aria-pressed', String(b.dataset.flow === f)); });
+    panels.forEach(function(p){ p.hidden = p.dataset.steps !== f; });
+    if (f === 'all') { delete fig.dataset.flow; } else { fig.dataset.flow = f; }
+    var noLink = f === 'nolink';
+    var key = noLink ? 'f-local' : 'f-' + f;
+    fig.querySelectorAll('.edge, .node').forEach(function(el){
+      el.classList.toggle('on', f !== 'all' && el.classList.contains(key));
+      el.classList.toggle('cut', noLink && el.classList.contains('f-cross'));
+    });
+  }
+  flowBtns.forEach(function(b){ b.addEventListener('click', function(){ setFlow(b.dataset.flow); }); });
+
+  var fBtns = document.querySelectorAll('.ffilter button');
+  var items = document.querySelectorAll('.fmap li');
+  var branches = document.querySelectorAll('.branch');
+  var counts = { all: items.length };
+  items.forEach(function(li){ counts[li.dataset.s] = (counts[li.dataset.s] || 0) + 1; });
+  fBtns.forEach(function(b){ b.querySelector('.n').textContent = counts[b.dataset.s] || 0; });
+  function updateBranchCounts(){
+    branches.forEach(function(br){
+      var shown = br.querySelectorAll('li:not([hidden])').length;
+      br.querySelector('h3 small').textContent = shown;
+      br.hidden = shown === 0;
+    });
+  }
+  fBtns.forEach(function(b){
+    b.addEventListener('click', function(){
+      var s = b.dataset.s;
+      fBtns.forEach(function(x){ x.setAttribute('aria-pressed', String(x === b)); });
+      items.forEach(function(li){ li.hidden = !(s === 'all' || li.dataset.s === s); });
+      updateBranchCounts();
+    });
+  });
+  updateBranchCounts();
+})();
+</script>
+
+</html>

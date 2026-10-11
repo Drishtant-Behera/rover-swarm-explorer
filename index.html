@@ -1,0 +1,1003 @@
+<!doctype html>
+<!--
+  Rover Swarm Explorer: part of the rover swarm visuals (index.html, system-map.html,
+  planned-architecture.html). Plain static pages: open in any browser or host
+  the whole folder as-is. Keep every fact in step with docs/ARCHITECTURE.md,
+  docs/FUTURE_PLANS.md, docs/SIMULATION.md and the code.
+  Status keys: hw = on the real rover, sim = simulation, sw = tested software, plan = planned.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Rover Swarm Explorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root{
+  /* Layout: one canvas holding the whole system (today and planned), a toolbar to focus or follow a path, and a detail panel beside the map. Same tokens as the System Map and the Planned Swarm Architecture. */
+  --bg:#F2F5F5; --fig:#FBFCFC; --panel:#FFFFFF; --fg:#13272B; --muted:#56696D;
+  --line:#C6D2D4; --node:#8EA3A7; --edge:#7D9296; --subfill:#F3F7F7;
+  --accent:#0E6C78; --accent-soft:#D8ECEF; --on-accent:#FFFFFF; --cut:#B3433A;
+  --hw:#2D7C51; --sim:#2C6AB2; --sw:#7650AE; --plan:#A0630E;
+  --shadow:0 6px 18px rgba(19,39,43,.14);
+  --f-display:"Barlow Semi Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0D1517; --fig:#111B1E; --panel:#162226; --fg:#E1EBEC; --muted:#93A8AC;
+    --line:#2A3B3F; --node:#4E6569; --edge:#6F878B; --subfill:#14201F;
+    --accent:#5BC2CE; --accent-soft:#163A40; --on-accent:#06262A; --cut:#EF8A7D;
+    --hw:#6CC596; --sim:#83B5F0; --sw:#BA9EEA; --plan:#E2AA57;
+    --shadow:0 6px 18px rgba(0,0,0,.45); color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0D1517; --fig:#111B1E; --panel:#162226; --fg:#E1EBEC; --muted:#93A8AC;
+  --line:#2A3B3F; --node:#4E6569; --edge:#6F878B; --subfill:#14201F;
+  --accent:#5BC2CE; --accent-soft:#163A40; --on-accent:#06262A; --cut:#EF8A7D;
+  --hw:#6CC596; --sim:#83B5F0; --sw:#BA9EEA; --plan:#E2AA57;
+  --shadow:0 6px 18px rgba(0,0,0,.45); color-scheme:dark;
+}
+body{background:var(--bg);color:var(--fg);font:15px/1.5 var(--f-body);-webkit-font-smoothing:antialiased}
+.wrap{max-width:1500px;margin:0 auto;padding-inline:20px;padding-block:24px 56px}
+h1,h2,h3,h4{font-family:var(--f-display);text-wrap:balance;margin:0}
+h1{font-weight:700;font-size:clamp(30px,4vw,44px);line-height:1.04}
+h3{font-weight:600;font-size:21px;line-height:1.15}
+h4{font-weight:600;font-size:15px;color:var(--muted);letter-spacing:.02em}
+p{margin:0}
+a{color:var(--accent)}
+.kicker{font:500 11.5px/1 var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.lead{max-width:84ch;color:var(--muted);font-size:15.5px}
+header{display:grid;gap:10px;padding-bottom:14px}
+.toolbar{display:grid;gap:8px;padding-block:12px;border-top:1px solid var(--line)}
+.tgroup{display:flex;gap:12px;align-items:flex-start;min-width:0}
+.tl{flex:none;width:104px;font:500 11px/1 var(--f-mono);letter-spacing:.07em;text-transform:uppercase;color:var(--muted);padding-top:9px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;min-width:0;flex:1}
+.chips button{font:500 13px/1 var(--f-body);padding:7px 11px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--fg);cursor:pointer;display:inline-flex;align-items:center;gap:7px}
+.chips button:hover{border-color:var(--accent)}
+.chips button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.chips button.subchip{font-size:12.5px;padding:6px 10px}
+.chips .n{font:400 11.5px var(--f-mono);opacity:.8}
+.chips button.stat[aria-pressed="false"]{opacity:.55;text-decoration:line-through}
+.row2{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-start;flex:1;min-width:0}
+.search{position:relative;margin-left:auto;width:min(280px,100%)}
+.search input{width:100%;box-sizing:border-box;font:14px var(--f-body);padding:8px 12px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--fg)}
+.search input:focus{outline:2px solid var(--accent);outline-offset:1px}
+#results{position:absolute;z-index:6;top:calc(100% + 4px);left:0;right:0;list-style:none;margin:0;padding:4px;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);max-height:300px;overflow:auto}
+#results button{display:block;width:100%;text-align:left;font:13.5px var(--f-body);color:var(--fg);background:none;border:0;padding:7px 9px;border-radius:6px;cursor:pointer}
+#results button:hover,#results button:focus-visible{background:var(--accent-soft);outline:none}
+#results small{color:var(--muted);display:block;font-size:12px}
+@media (max-width:760px){.tgroup{flex-direction:column;gap:6px}.tl{width:auto;padding-top:0}.search{margin-left:0;width:100%}}
+.stage{display:grid;grid-template-columns:minmax(0,1fr) 370px;gap:14px}
+@media (max-width:1000px){.stage{grid-template-columns:minmax(0,1fr)}}
+.mapbox{position:relative;height:clamp(520px,76vh,940px);background:var(--fig);border:1px solid var(--line);border-radius:12px;overflow:hidden;touch-action:none;cursor:grab;min-width:0}
+.mapbox:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.mapbox.dragging{cursor:grabbing}
+#map{display:block;width:100%;height:100%;user-select:none;-webkit-user-select:none}
+.zoom{position:absolute;right:10px;bottom:10px;display:flex;flex-direction:column;gap:6px}
+.zoom button{width:40px;height:40px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--fg);font:600 18px/1 var(--f-body);cursor:pointer;box-shadow:var(--shadow)}
+.zoom button.fit{font-size:12px}
+.maphint{position:absolute;left:10px;bottom:10px;font-size:12px;color:var(--muted);background:var(--fig);border:1px solid var(--line);padding:3px 8px;border-radius:6px;pointer-events:none}
+.where{position:absolute;left:10px;top:10px;font:500 12px var(--f-mono);color:var(--accent);background:var(--fig);border:1px solid var(--line);padding:4px 9px;border-radius:6px;pointer-events:none;max-width:70%}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;max-height:clamp(520px,76vh,940px);overflow:auto;min-width:0;display:grid;gap:12px;align-content:start}
+@media (max-width:1000px){.panel{max-height:none}}
+.crumb{font:500 11.5px var(--f-mono);letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.desc{font-size:14.5px}
+.statline{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:13px;color:var(--muted)}
+.statline span{display:inline-flex;align-items:center;gap:6px}
+.feat,.conn,.steps{list-style:none;margin:0;padding:0;display:grid;gap:5px}
+.feat li{display:flex;gap:9px;align-items:baseline;font-size:14px}
+.conn li{font-size:13.5px}
+.lnk{font:inherit;color:var(--accent);background:none;border:0;padding:0;cursor:pointer;text-align:left;text-decoration:underline;text-underline-offset:2px}
+.conn .lbl{color:var(--muted)}
+.steps{counter-reset:s;gap:4px}
+.steps li button{display:grid;grid-template-columns:24px 1fr;gap:8px;width:100%;text-align:left;font:14px/1.45 var(--f-body);color:var(--fg);background:none;border:1px solid transparent;border-radius:8px;padding:6px 8px;cursor:pointer}
+.steps li button:hover{border-color:var(--line)}
+.steps li button.cur{background:var(--accent-soft);border-color:var(--accent)}
+.steps .num{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--accent);color:var(--on-accent);font:600 12px var(--f-body)}
+.btnrow{display:flex;flex-wrap:wrap;gap:8px}
+.btn{font:500 13px/1 var(--f-body);padding:8px 12px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--fg);cursor:pointer}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+code{font-family:var(--f-mono);font-size:12.5px;word-break:break-word}
+.tips{margin:0;padding-left:1.1em;display:grid;gap:5px;font-size:14px}
+.dot{flex:none;display:inline-block;width:9px;height:9px}
+.dot.hw{background:var(--hw);border-radius:50%}
+.dot.sim{background:var(--sim);transform:rotate(45deg) scale(.86)}
+.dot.sw{background:var(--sw)}
+.dot.plan{border:1.6px solid var(--plan);border-radius:50%;box-sizing:border-box}
+.legend{display:flex;flex-wrap:wrap;gap:6px 20px;list-style:none;padding:0;margin:12px 0 0;font-size:13px;color:var(--muted)}
+.legend li{display:flex;align-items:center;gap:8px}
+.legend svg{width:34px;height:10px}
+footer{margin-top:22px;padding-top:14px;border-top:1px solid var(--line);font-size:12.5px;color:var(--muted);max-width:110ch}
+button:focus-visible,.lnk:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* map */
+#map text{font-family:var(--f-body);font-size:11.5px;fill:var(--fg)}
+#map .rg{fill:none;stroke:var(--line);stroke-width:1.6}
+#map .srg{fill:var(--subfill);stroke:var(--line);stroke-width:1}
+#map .rgl{font-family:var(--f-display);font-weight:600;font-size:22px}
+#map .rgs{font-size:13px;fill:var(--muted)}
+#map .srgl{font-weight:600;font-size:13px;fill:var(--muted);letter-spacing:.02em}
+#map .box{fill:var(--panel);stroke:var(--node);stroke-width:1.2}
+#map .store{fill:var(--accent-soft);stroke:var(--accent);stroke-width:1.5}
+#map .chip{fill:var(--panel);stroke:var(--node);stroke-width:1}
+#map .nt{font-weight:600;font-size:13px}
+#map .d-hw{fill:var(--hw)} #map .d-sim{fill:var(--sim)} #map .d-sw{fill:var(--sw)}
+#map .d-plan{fill:var(--panel);stroke:var(--plan);stroke-width:1.6}
+#map .mk{fill:var(--edge)} #map .mk-hi{fill:var(--accent)} #map .mk-cut{fill:var(--cut)}
+#map .edge .vis{fill:none;stroke:var(--edge);stroke-width:1.4;opacity:.75}
+#map .edge.plan .vis{stroke-dasharray:6 4}
+#map .edge.sight .vis{stroke-dasharray:9 4}
+#map .edge.lora .vis{stroke-dasharray:1 4;stroke-linecap:round;stroke-width:2.2}
+#map .edge .hitp{fill:none;stroke:transparent;stroke-width:14;pointer-events:stroke;cursor:pointer}
+#map .edge.on .vis{stroke:var(--accent);stroke-width:2.6;opacity:1}
+#map .edge.cur .vis{stroke-width:4}
+#map .edge.cut .vis{stroke:var(--cut);stroke-dasharray:3 4;opacity:.9}
+#map .edge.dim .vis{opacity:.12}
+#map .lab text{font-size:11.5px;fill:var(--muted);text-anchor:middle;paint-order:stroke;stroke:var(--fig);stroke-width:5px;stroke-linejoin:round}
+#map .lab{display:none}
+#map .lab.show{display:inline}
+#map .lab.on text{fill:var(--accent);font-weight:600}
+#map .lab.cut text{fill:var(--cut)}
+#map .badge circle{fill:var(--accent);stroke:var(--fig);stroke-width:2}
+#map .badge text{fill:var(--on-accent);font-weight:700;font-size:12px;text-anchor:middle;stroke:none}
+#map .badge.cur circle{r:14}
+#map .node{cursor:pointer}
+#map .node:focus{outline:none}
+#map .node:focus-visible .box,#map .node:focus-visible .store{stroke:var(--accent);stroke-width:2.6}
+#map .node.sel .box,#map .node.sel .store{stroke:var(--accent);stroke-width:3}
+#map .node.hl .box{stroke:var(--accent);stroke-width:1.8}
+#map .node.dim{opacity:.22}
+#map .ln.off{opacity:.25}
+#map .node.sdim{opacity:.3}
+#map .regionlabel.dim{opacity:.35}
+#map .node,#map .edge .vis,#map .lab{transition:opacity .2s}
+@media (prefers-reduced-motion:reduce){#map .node,#map .edge .vis,#map .lab{transition:none}}
+</style>
+
+<div class="wrap">
+<header>
+  <p class="kicker">Drishtant Behera · rover swarm project</p>
+  <h1>Rover Swarm Explorer</h1>
+  <p class="lead">The end goal for this project, as I see it: every part the rover swarm should have and how the parts connect, with what already exists marked. Switch to “Built so far” to see only today's work. It combines the <a href="system-map.html">System Map</a> and the <a href="planned-architecture.html">Planned Swarm Architecture</a>. Focus on one area, follow a path step by step, or click any box.</p>
+</header>
+
+<div class="toolbar">
+  <div class="tgroup"><span class="tl">View</span><div class="chips" id="viewChips" role="group" aria-label="Choose a view"></div></div>
+  <div class="tgroup"><span class="tl">Focus on</span><div class="chips" id="regionChips" role="group" aria-label="Focus on an area"></div></div>
+  <div class="tgroup"><span class="tl">Follow a path</span><div class="chips" id="tourChips" role="group" aria-label="Follow a path"></div></div>
+  <div class="tgroup"><span class="tl">Show</span><div class="row2"><div class="chips" id="statusChips" role="group" aria-label="Show statuses"></div>
+    <div class="search"><input id="q" type="search" placeholder="Find a part, e.g. LoRa or EKF" autocomplete="off" aria-label="Find a part"><ul id="results" hidden></ul></div></div></div>
+</div>
+
+<div class="stage">
+  <div class="mapbox" id="mapbox" tabindex="0" aria-label="System map. Drag to move, scroll or pinch to zoom, arrow keys to pan, plus and minus to zoom, 0 to fit.">
+    <svg id="map" role="img" aria-label="Map of the whole rover swarm, current and planned"></svg>
+    <div class="where" id="where">Everything</div>
+    <div class="maphint">Drag to move · scroll or pinch to zoom · click a box</div>
+    <div class="zoom"><button type="button" id="zin" aria-label="Zoom in">+</button><button type="button" id="zout" aria-label="Zoom out">−</button><button type="button" id="zfit" class="fit" aria-label="Fit everything">Fit</button></div>
+  </div>
+  <aside class="panel" id="panel" aria-live="polite"></aside>
+</div>
+
+<ul class="legend" aria-label="Key">
+  <li><span class="dot hw"></span>On the real rover</li>
+  <li><span class="dot sim"></span>In simulation</li>
+  <li><span class="dot sw"></span>Software, tested</li>
+  <li><span class="dot plan"></span>Planned</li>
+  <li><svg viewBox="0 0 34 10" aria-hidden="true"><path d="M1,5H33" stroke="var(--edge)" stroke-width="1.6"/></svg>Connection that exists</li>
+  <li><svg viewBox="0 0 34 10" aria-hidden="true"><path d="M1,5H33" stroke="var(--edge)" stroke-width="1.6" stroke-dasharray="6 4"/></svg>Planned connection</li>
+  <li><svg viewBox="0 0 34 10" aria-hidden="true"><path d="M2,5H33" stroke="var(--edge)" stroke-width="2.2" stroke-dasharray="1 4" stroke-linecap="round"/></svg>LoRa radio</li>
+  <li><svg viewBox="0 0 34 10" aria-hidden="true"><path d="M1,5H33" stroke="var(--edge)" stroke-width="1.6" stroke-dasharray="9 4"/></svg>Cameras reading tags at a meeting</li>
+</ul>
+
+<footer>A visual of the system architecture that Drishtant Behera generated with Claude. Built on 11 October 2026 from docs/ARCHITECTURE.md, docs/DECISION_LAYER.md, docs/SIMULATION.md, docs/FUTURE_PLANS.md, the ROS 2 nodes and launch files, rover_agent/ and the paper draft. Simulation results come from Gazebo with the real rover software. Lessons and retraining come from the project's stated final goal.</footer>
+</div>
+
+<script>
+(function(){
+"use strict";
+var NS = "http://www.w3.org/2000/svg";
+var W = 2600, H = 1980;
+var STATUS = { hw: "On the rover", sim: "Simulation", sw: "Software", plan: "Planned" };
+
+var REG = [
+  { id: "people", t: "People", s: "you and the dashboard", x: 40, y: 40, w: 520, h: 470 },
+  { id: "laptop", t: "Laptop", s: "ground station · optional for safety", x: 600, y: 40, w: 1460, h: 470 },
+  { id: "testing", t: "Testing", s: "simulation and measurement", x: 2100, y: 40, w: 460, h: 500 },
+  { id: "store", t: "Shared world store", s: "", x: 40, y: 556, w: 2520, h: 132, hidden: true },
+  { id: "rover", t: "Every rover", s: "the same software on each one", x: 40, y: 730, w: 1860, h: 1000 },
+  { id: "body", p: "rover", t: "Body and firmware", x: 60, y: 780, w: 440, h: 440 },
+  { id: "where", p: "rover", t: "Where am I", x: 520, y: 780, w: 440, h: 440 },
+  { id: "memory", p: "rover", t: "Memory", x: 980, y: 780, w: 440, h: 440 },
+  { id: "talking", p: "rover", t: "Talking", x: 1440, y: 780, w: 440, h: 440 },
+  { id: "moving", p: "rover", t: "Moving", x: 60, y: 1250, w: 440, h: 460 },
+  { id: "deciding", p: "rover", t: "Deciding", x: 520, y: 1250, w: 440, h: 460 },
+  { id: "perception", p: "rover", t: "Perception", x: 980, y: 1250, w: 440, h: 460 },
+  { id: "teamlogic", p: "rover", t: "Team logic", x: 1440, y: 1250, w: 440, h: 460 },
+  { id: "roles", t: "Rovers and roles", s: "", x: 1940, y: 730, w: 620, h: 1000 },
+  { id: "world", t: "The world", s: "", x: 40, y: 1770, w: 2520, h: 170 }
+];
+
+var N = [
+  { id: "you", r: "people", x: 60, y: 84, w: 480, t: "You", ln: [["plan","ask in plain words"],["plan","approve each plan"],["plan","stop all rovers at once"]],
+    d: "You give the team a goal in plain language, approve the plan before it runs, and can stop every rover from the laptop.", src: "docs/FUTURE_PLANS.md §2, §5.1" },
+  { id: "dash", r: "people", x: 60, y: 200, w: 480, t: "Dashboard", ln: [["hw","RViz2 and a map view in the browser"],["plan","every rover: battery, link, pose"],["plan","places, objects, tasks, claims"],["plan","plans waiting for your approval"],["plan","orphaned tasks waiting for you"]],
+    d: "Today the laptop shows the live map in RViz2 and a browser map view. The planned fleet dashboard adds every rover's state, the shared store, plans to approve, and anything that needs a person.", src: "tools/slam_web_view.py · docs/FUTURE_PLANS.md §5.4" },
+  { id: "planner", r: "laptop", x: 620, y: 84, w: 440, t: "Mission planner (language model)", ln: [["plan","request → task graph"],["plan","subtasks, places, needs, order"],["plan","revises the graph after failures"],["plan","never drives or makes safety calls"]],
+    d: "A language model on the laptop turns a request like “stack these boxes” into a task graph. Its output is only a proposal; deterministic code decides whether it runs.", src: "docs/FUTURE_PLANS.md §5.1 (reuses rover_agent/agent_client.py)" },
+  { id: "tgcheck", r: "laptop", x: 620, y: 216, w: 440, t: "Task-graph checker", ln: [["sw","same deterministic rules as each rover"],["plan","checks the whole graph before it runs"]],
+    d: "Deterministic code validates the planner's task graph before any task reaches the rovers, the same way each rover's envelope checks single actions.", src: "rover_agent/envelope.py · docs/FUTURE_PLANS.md §5.1" },
+  { id: "mapjoin", r: "laptop", x: 1100, y: 84, w: 440, t: "Map joining", ln: [["sim","rendezvous: stop, approach, face"],["sim","handshake: tag centres → map offset"],["sim","map merger → /team/map, once a second"],["sw","meetings scheduled from map drift"],["plan","re-check the join at every meeting"]],
+    d: "When rovers meet, the laptop works out where one rover's map sits inside the other's from AprilTag sightings, then merges the maps. In simulation the join was off by 5 cm where the rovers met.", src: "ros2/rover_team/ (handshake.py, map_merger.py, rendezvous.py) · docs/SIMULATION.md" },
+  { id: "vision", r: "laptop", x: 1100, y: 234, w: 440, t: "Vision model", ln: [["sw","lists the objects in a camera frame"],["sw","about a second per image"],["plan","where it should run: experiment E5"]],
+    d: "A vision-language model names what the camera sees. Code, not the model, decides whether something is out of place. Whether it should run on the laptop or the rover is experiment E5.", src: "ros2/rover_perception/vlm_client.py · paper §4.3" },
+  { id: "zenoh", r: "laptop", x: 1580, y: 84, w: 460, t: "Zenoh router", ln: [["plan","carries all Wi-Fi traffic"],["plan","rovers find each other through it"],["plan","replaces unreliable DDS discovery"]],
+    d: "A router-based transport for ROS 2. DDS multicast discovery is unreliable over Wi-Fi, so every machine connects through one router on the laptop.", src: "docs/ARCHITECTURE.md §6.5 · docs/FUTURE_PLANS.md §3" },
+  { id: "fleet", r: "laptop", x: 1580, y: 198, w: 460, t: "Fleet logs", ln: [["plan","run logs from every rover"],["plan","evidence behind each lesson"],["plan","retrain a better model (final goal)"]],
+    d: "Every rover's run logs, kept on the laptop. They back up the lessons rovers share, and after ISEF they could train a better onboard model.", src: "project goal (not yet in docs/FUTURE_PLANS.md)" },
+  { id: "gazebo", r: "testing", x: 2120, y: 84, w: 420, t: "Gazebo simulator", ln: [["sim","runs the real rover software"],["sim","virtual ESP32 on a fake serial port"],["sim","two-rover team check"],["sim","found two real bugs"]],
+    d: "Software-in-the-loop testing: Gazebo stands in for the world and the hardware, and the rover's real nodes run unchanged. It found that SLAM drops scans while spinning and that the bridge publishes velocity spikes.", src: "ros2/rover_gazebo/ · tools/sim.sh · docs/SIMULATION.md" },
+  { id: "simworld", r: "testing", x: 2120, y: 210, w: 420, t: "Simulated worlds", ln: [["sim","greenhouse, full site, maze"],["sim","ground truth for scoring"]],
+    d: "Three worlds generated from the same tables: a small greenhouse, the full 30 × 30 m site, and a 14 × 10 m building with rooms and corridors.", src: "ros2/rover_gazebo/worlds/generate_worlds.py" },
+  { id: "tests", r: "testing", x: 2120, y: 300, w: 420, t: "Tests and metrics", ln: [["sw","2,148 assertions in 15 suites"],["sw","ATE, RPE, bootstrap intervals"],["sw","trajectory recorder, run evaluator"]],
+    d: "Every metric the paper reports comes from one tested implementation, checked against cases with known answers.", src: "test_*.py · rover_agent/metrics.py · docs/RESULTS.md" },
+  { id: "exps", r: "testing", x: 2120, y: 408, w: 420, t: "Experiments", ln: [["plan","E1 drift · E2 handshake · E3 CRCE"],["plan","E4 comms · E5 vision placement"],["plan","E6–E8 checkpoints, coordination"],["plan","one-command experiment runner"]],
+    d: "Eight experiments, each specified before data collection. E1 to E3 come first. They run in the polyhouse and a second site, against surveyed markers.", src: "paper §5 · docs/FUTURE_PLANS.md §7" },
+  { id: "shared", r: "store", x: 60, y: 568, w: 2480, h: 104, t: "Shared world store", sub: "a CRDT copy on every rover and on the laptop · rovers coordinate mostly through it",
+    ln: [["sw","places (checkpoints)"],["plan","objects (labelled places)"],["sw","tasks + claims"],["plan","lane reservations"],["plan","dock reservations"],["plan","lessons + evidence"],["plan","capabilities + battery"],["sw","orphan reports"]],
+    d: "Every rover and the laptop hold a copy. It's a CRDT: copies that received the same records hold the same state whatever order they arrived in, so rovers agree again after a network split without a coordinator.", src: "rover_agent/checkpoint_store.py · paper §4.11" },
+  { id: "esp32", r: "body", x: 80, y: 820, w: 400, t: "ESP32 firmware", ln: [["hw","PID speed loop per wheel, 50 Hz"],["hw","counts 1,540 ticks per wheel turn"],["hw","stops the motors after 500 ms"],["hw","plain-text serial, 115200 baud"]],
+    d: "The real-time tier. At full speed it services about 13,300 encoder interrupts a second, which Linux can't promise to catch. It knows no geometry: wheel size and track width live only in the ROS config.", src: "firmware/rover_firmware/rover_firmware.ino · docs/SERIAL_PROTOCOL.md" },
+  { id: "sensors", r: "body", x: 80, y: 946, w: 400, t: "Motors and sensors", ln: [["hw","4 gear motors with encoders"],["hw","RPLIDAR C1 lidar, 10 Hz"],["hw","MPU-6050 gyro"],["hw","Orange Pi 5 Ultra on board"]],
+    d: "JGA25-371 gear motors (130 RPM) with quadrature encoders, a 2D lidar that sees one plane, and a gyro on the ESP32's I²C bus.", src: "paper §3.4" },
+  { id: "addons", r: "body", x: 80, y: 1072, w: 400, t: "Not fitted yet", ln: [["plan","battery monitor (blocks autonomy)"],["plan","e-stop button"],["plan","LoRa radio + charging coil"],["plan","robotic arm (arm rover)"]],
+    d: "The battery monitor comes first: without it the decision layer treats the battery as unknown and sends the rover home every cycle.", src: "docs/FUTURE_PLANS.md §2" },
+  { id: "bridge", r: "where", x: 540, y: 820, w: 400, t: "Serial bridge", ln: [["hw","ticks → odometry"],["hw","keeps the smaller count (slip)"],["hw","gyro bias while standing still"],["plan","fix: velocity from firmware timestamps"]],
+    d: "Turns encoder ticks into odometry. Both wheels on one side must cover the same ground, so it keeps the smaller count. Simulation showed its velocity spikes when serial lines arrive in bursts.", src: "ros2/rover_serial_bridge/rover_serial_bridge/serial_bridge_node.py" },
+  { id: "ekf", r: "where", x: 540, y: 946, w: 400, t: "EKF", ln: [["hw","wheel speed + gyro, 30 Hz"],["plan","add scan-matching odometry"],["plan","trust the wheels less when slipping"]],
+    d: "robot_localization blends wheel speed and gyro turn rate into a smooth position that slowly drifts.", src: "ros2/rover_serial_bridge/config/ekf.yaml" },
+  { id: "slam", r: "where", x: 540, y: 1054, w: 400, t: "SLAM (slam_toolbox)", ln: [["hw","scan filter drops deck beams"],["hw","pose graph + loop closure"],["hw","its own map: roverN/map"],["plan","fix: scans dropped while spinning"],["plan","detect lost localization"]],
+    d: "Matches each scan to the map and corrects drift. Each rover keeps its own map, and the laptop joins them.", src: "ros2/rover_serial_bridge/launch/slam.launch.py" },
+  { id: "store", r: "memory", x: 1000, y: 820, w: 400, t: "Its copy of the store", ln: [["sw","places anchored to pose-graph vertices"],["sw","replicated as a CRDT"],["sw","duplicates merged (covariance intersection)"],["sw","15-byte checkpoint packet"],["plan","runs as a ROS node (M3)"]],
+    d: "Places are stored relative to a pose-graph vertex, so they move with the map when a loop closure reshapes it. Built and tested in software, not yet running on a robot.", src: "rover_agent/checkpoint_store.py" },
+  { id: "rules", r: "memory", x: 1000, y: 964, w: 400, t: "Checkpoint rules", ln: [["sw","junctions, frontiers, uncertainty, corners"],["sw","gates stop near-duplicates"],["plan","geometry fingerprint check"]],
+    d: "Places are created by explicit rules, not every few metres. A corner, which pins position down, scores high; a plain corridor scores 0.", src: "rover_agent/checkpoint_policy.py" },
+  { id: "lessons", r: "memory", x: 1000, y: 1072, w: 400, t: "Lessons", ln: [["plan","from its own logs, with evidence"],["plan","shared, but treated as untrusted"]],
+    d: "Short lessons such as “lane 3, west end: wheel slip, 3 incidents”, each linked to the log entries behind it. They can never change reflexes or the checker.", src: "project goal" },
+  { id: "wifi", r: "talking", x: 1460, y: 820, w: 400, t: "Wi-Fi link", ln: [["hw","ROS 2 over Wi-Fi to the laptop"],["plan","through the Zenoh router"],["plan","clock sync (chrony)"]],
+    d: "Carries maps, scans, tag sightings and team messages. When it drops, everything on the rover keeps running.", src: "docs/ARCHITECTURE.md §6.5" },
+  { id: "lanes", r: "talking", x: 1460, y: 926, w: 400, t: "Priority lanes", ln: [["plan","1: safety + coordination first"],["plan","2: maps + scans, best effort"],["plan","3: images only on request"]],
+    d: "Small, important messages go first and reliably; bulky data gets whatever bandwidth is left.", src: "docs/FUTURE_PLANS.md §5.3" },
+  { id: "lora", r: "talking", x: 1460, y: 1032, w: 400, t: "LoRa backup", ln: [["plan","15-byte checkpoints, rover to rover"],["plan","relay from a good-signal spot"],["plan","carry data back into range"]],
+    d: "A slow radio with a 1% duty cycle. A checkpoint fits in one packet; a lidar scan never would.", src: "paper §4.9 · experiment E4" },
+  { id: "secure", r: "talking", x: 1460, y: 1138, w: 400, t: "Link health", ln: [["sw","decision layer reads the link tier"],["plan","signed messages (SROS2)"]],
+    d: "The decision node listens on /comms/tier. Nothing publishes it yet, so it infers a degraded link when every peer goes silent.", src: "ros2/rover_decision/rover_decision/decision_node.py · docs/DECISION_LAYER.md §8" },
+  { id: "explore", r: "moving", x: 80, y: 1290, w: 400, t: "Frontier explorer", ln: [["hw","drives to the edge of the map"],["sw","A* planner on an inflated map"]],
+    d: "Picks the boundary between known and unknown space and drives there. Working on rover 1.", src: "tools/explore.py · rover_agent/planner.py" },
+  { id: "exec", r: "moving", x: 80, y: 1380, w: 400, t: "Executor + command mux", ln: [["sw","turn, then drive (dry-run by default)"],["sim","mux: team 50 beats explorer 10"],["sw","executor isn't behind the mux yet"]],
+    d: "Turns a chosen action into speed commands at 10 Hz. The command mux decides who drives when several sources send commands. The executor still publishes /cmd_vel directly.", src: "ros2/rover_decision/rover_decision/executor_node.py · ros2/rover_team/launch/team.launch.py" },
+  { id: "monitor", r: "moving", x: 80, y: 1488, w: 400, t: "Progress + recovery", ln: [["sw","stalled, slipping or timed out?"],["sw","replan → rescan → back up → abandon"],["sw","abandon leaves an INCIDENT place"]],
+    d: "Checks whether the distance to the goal is falling as fast as it should, then climbs a recovery ladder, each step once. Three abandons in ten minutes go straight to a person.", src: "rover_agent/behavior_monitor.py" },
+  { id: "navplan", r: "moving", x: 80, y: 1596, w: 400, t: "Planned driving", ln: [["plan","Nav2 routes over lanes"],["plan","docking: map first, tag last"],["plan","slow down or stop for people"]],
+    d: "Point-to-point driving over a route graph of lanes and junctions, docking guided by a tag on the pad, and person detection.", src: "docs/FUTURE_PLANS.md §5.2, §5.6" },
+  { id: "reflex", r: "deciding", x: 540, y: 1290, w: 400, t: "Reflexes", ln: [["sw","e-stop, drive fault, battery, lost pose"],["sw","act first; the model is never asked"],["sw","LoRa-only link: skip the model"]],
+    d: "Situations with one right answer are handled by plain code before the model is consulted.", src: "rover_agent/reflexes.py" },
+  { id: "llm", r: "deciding", x: 540, y: 1396, w: 400, t: "Local model", ln: [["sw","granite4.2:3b, strict JSON"],["sw","only ids that exist can be produced"],["plan","benchmark on the Orange Pi"]],
+    d: "Proposes actions. On a laptop, a strict schema cut a decision from 40.1 s to 4.4 s, and listing only real ids raised acceptance from 54% to 89%.", src: "rover_agent/agent_client.py · docs/DECISION_LAYER.md §2" },
+  { id: "envelope", r: "deciding", x: 540, y: 1502, w: 400, t: "Checker + veto", ln: [["sw","accept, ask a human, or reject"],["sw","refusals remembered in the prompt"],["sw","veto: no trip the battery can't finish"]],
+    d: "Deterministic code judges every proposal, and the veto takes a last look against live state.", src: "rover_agent/envelope.py · rover_agent/reflexes.py" },
+  { id: "arb", r: "deciding", x: 540, y: 1608, w: 400, t: "Goal arbitration", ln: [["sw","does the battery cover the round trip?"],["sw","safety > survival > team > mission"],["sw","commitment stops dithering"]],
+    d: "The battery decides what's possible, the priority tiers decide what matters most, and utility only breaks ties. Built and tested; not yet in the ROS node.", src: "rover_agent/arbitration.py" },
+  { id: "tags", r: "perception", x: 1000, y: 1290, w: 400, t: "AprilTag detector", ln: [["sim","reads other rovers' tag cubes"],["plan","reads surveyed tags in the site"]],
+    d: "apriltag_ros reads tag36h11 tags. Each rover carries a 14 cm cube with a tag on every side.", src: "ros2/rover_team/launch/team.launch.py · rover_team/config/team.yaml" },
+  { id: "detect", r: "perception", x: 1000, y: 1380, w: 400, t: "Camera + anomaly check", ln: [["hw","USB camera, 640×480"],["sw","change detector on tiny frames"],["sw","vision model lists objects"],["sw","allowlist decides what's out of place"],["plan","bounding-box detector"]],
+    d: "Cheap frame differencing decides when to ask the vision model, and a periodic sweep guarantees coverage. The allowlist, not the model, judges what doesn't belong.", src: "ros2/rover_perception/rover_perception/anomaly_detector_node.py" },
+  { id: "locate", r: "perception", x: 1000, y: 1524, w: 400, t: "Placing what it sees", ln: [["sw","camera bearing + lidar range"],["sw","database merges repeat sightings"],["plan","objects become labelled places"]],
+    d: "A detection gets a map position from the camera's bearing and the lidar's range at that bearing.", src: "ros2/rover_perception/ (localization.py, anomaly_db.py)" },
+  { id: "auction", r: "teamlogic", x: 1460, y: 1290, w: 400, t: "Task auction", ln: [["sw","bid = value − 0.10 × path cost"],["sw","every rover computes the same result"],["plan","capabilities: arm, camera, reach"],["plan","summons are high-value assist tasks"]],
+    d: "A deterministic sequential auction on the replicated task list, so no rover needs to be told its assignment.", src: "rover_agent/task_allocation.py" },
+  { id: "partition", r: "teamlogic", x: 1460, y: 1416, w: 400, t: "When the link splits", ln: [["sw","silent 10 s → own territory only"],["sw","silent 120 s → tasks orphaned"],["sw","silence never hands over work"]],
+    d: "Each rover takes only unclaimed tasks inside its own Voronoi cell. In 1,800 random splits, no task was ever taken by two rovers.", src: "rover_agent/task_allocation.py" },
+  { id: "claims", r: "teamlogic", x: 1460, y: 1524, w: 400, t: "Claims and messages", ln: [["plan","lane claims: no claim, no entry"],["plan","dock claims"],["plan","announce, bid, award, help, release, report"]],
+    d: "Fixed messages from the Contract Net Protocol, plus reservations for narrow lanes and charging docks.", src: "docs/FUTURE_PLANS.md §3, §5.1, §5.6" },
+  { id: "others", r: "roles", x: 1960, y: 780, w: 580, t: "Other rovers", ln: [["sw","their own copies of the store"],["sim","their own maps, joined at meetings"],["plan","their LoRa radios"]],
+    d: "Every teammate runs the same stack. Rovers coordinate through the shared store, meet to re-join their maps, and fall back to LoRa when Wi-Fi fails.", src: "docs/ARCHITECTURE.md §6" },
+  { id: "rover1", r: "roles", x: 1960, y: 892, w: 580, t: "Rover 1", ln: [["hw","maps and explores on its own"],["plan","battery monitor, then autonomy"],["plan","robotic arm, if time allows"]],
+    d: "The rover that exists today: Orange Pi 5 Ultra, ESP32, RPLIDAR C1 and four gear motors.", src: "paper §3.4" },
+  { id: "rover2", r: "roles", x: 1960, y: 1004, w: 580, t: "Rover 2", ln: [["plan","being built"],["sim","runs in simulation today"]],
+    d: "Same software as rover 1, calibrated the same way. Two-rover runs happen in Gazebo until it's built.", src: "docs/FUTURE_PLANS.md §1, §2" },
+  { id: "scout", r: "roles", x: 1960, y: 1098, w: 580, t: "Scout role", ln: [["plan","lidar + camera; finds and marks"],["plan","offers: camera, speed"]],
+    d: "Explores, finds things, and marks each one as a labelled place. It never carries anything.", src: "docs/FUTURE_PLANS.md §4" },
+  { id: "arm", r: "roles", x: 1960, y: 1192, w: 580, t: "Arm role", ln: [["plan","arm folds away before driving"],["plan","offers: arm, reach, payload"]],
+    d: "Answers summons. The map gets it within about 10 to 30 cm, and the camera or a tag does the last few centimetres.", src: "docs/FUTURE_PLANS.md §4" },
+  { id: "anyrobot", r: "roles", x: 1960, y: 1286, w: 580, t: "Any robot with lidar + SLAM", ln: [["plan","joins the team with a tag cube"],["plan","offers whatever it has"]],
+    d: "The open-source goal: any robot that publishes a pose and a map and carries a tag cube can join the team.", src: "project goal" },
+  { id: "docks", r: "world", x: 60, y: 1815, w: 470, t: "Charging docks", ln: [["plan","inductive pad, a tag on each"],["plan","reserve a dock before using it"]],
+    d: "A rover charges by parking over a pad. Nothing is exposed to corrode in a humid greenhouse. Docking is a small experiment of its own.", src: "docs/FUTURE_PLANS.md §5.6" },
+  { id: "routes", r: "world", x: 562, y: 1815, w: 470, t: "Route graph", ln: [["plan","lanes, rows and junctions"],["plan","junction places as nodes"]],
+    d: "The site as a graph: a route is a sequence of lanes, and narrow lanes are claimed before entry.", src: "docs/FUTURE_PLANS.md §5.2" },
+  { id: "surveyed", r: "world", x: 1064, y: 1815, w: 470, t: "Surveyed AprilTags", ln: [["plan","re-anchor the maps"],["plan","ground truth for E3"]],
+    d: "A few tags at measured spots in the site, used to re-anchor maps and to score experiments against the truth.", src: "docs/FUTURE_PLANS.md §3" },
+  { id: "polyhouse", r: "world", x: 1566, y: 1815, w: 470, t: "Aquaponics polyhouse", ln: [["plan","first test site"],["plan","dozens of identical rows"]],
+    d: "The first test site, and the hard case: rows that look the same everywhere fool scan matching.", src: "paper §1" },
+  { id: "site2", r: "world", x: 2068, y: 1815, w: 470, t: "Second test site", ln: [["plan","a hallway or a storage room"],["plan","shows it isn't greenhouse-only"]],
+    d: "Running at least E1 and E3 in a second place turns “this is general” from a claim into a result.", src: "docs/FUTURE_PLANS.md §3" }
+];
+
+var E = [
+  { i: "e1", a: "sensors", b: "esp32", l: "ticks + gyro", s: "hw" },
+  { i: "e2", a: "esp32", b: "bridge", l: "ticks 50 Hz, gyro 100 Hz · speed commands", s: "hw", two: 1 },
+  { i: "e3", a: "sensors", b: "slam", l: "lidar scans, 10 Hz", s: "hw" },
+  { i: "e4", a: "bridge", b: "ekf", l: "odometry + gyro", s: "hw" },
+  { i: "e5", a: "ekf", b: "slam", l: "smooth pose", s: "hw" },
+  { i: "e6", a: "slam", b: "explore", l: "map + pose", s: "hw" },
+  { i: "e7", a: "slam", b: "reflex", l: "pose + uncertainty", s: "sw" },
+  { i: "e8", a: "slam", b: "store", l: "pose-graph anchors", s: "sw" },
+  { i: "e9", a: "slam", b: "rules", l: "pose, scans", s: "sw" },
+  { i: "e10", a: "rules", b: "store", l: "new places", s: "sw" },
+  { i: "e11", a: "slam", b: "wifi", l: "own map", s: "sim" },
+  { i: "e12", a: "slam", b: "locate", l: "pose + lidar range", s: "sw" },
+  { i: "e13", a: "detect", b: "vision", l: "frames → object lists", s: "sw", two: 1 },
+  { i: "e14", a: "detect", b: "locate", l: "flagged objects", s: "sw" },
+  { i: "e15", a: "locate", b: "llm", l: "anomalies to inspect", s: "sw" },
+  { i: "e16", a: "locate", b: "store", l: "objects as labelled places", s: "plan" },
+  { i: "e17", a: "tags", b: "wifi", l: "tag sightings", s: "sim" },
+  { i: "e18", a: "others", b: "tags", l: "cameras read each other's tags", s: "sim", two: 1, k: "sight" },
+  { i: "e19", a: "reflex", b: "llm", l: "nothing urgent", s: "sw" },
+  { i: "e20", a: "llm", b: "envelope", l: "proposals · refusals", s: "sw", two: 1 },
+  { i: "e22", a: "envelope", b: "arb", l: "accepted actions", s: "sw" },
+  { i: "e23", a: "arb", b: "exec", l: "chosen goal, after the veto", s: "sw" },
+  { i: "e24", a: "reflex", b: "exec", l: "forced action", s: "sw" },
+  { i: "e25", a: "exec", b: "bridge", l: "speed commands (/cmd_vel)", s: "sw" },
+  { i: "e26", a: "explore", b: "exec", l: "explorer commands (mux 10)", s: "sim" },
+  { i: "e27", a: "monitor", b: "exec", l: "progress", s: "sw", two: 1 },
+  { i: "e28", a: "monitor", b: "store", l: "INCIDENT place", s: "sw" },
+  { i: "e29", a: "monitor", b: "auction", l: "release the task", s: "sw" },
+  { i: "e30", a: "addons", b: "reflex", l: "battery level", s: "plan" },
+  { i: "e31", a: "secure", b: "reflex", l: "link tier", s: "sw" },
+  { i: "e32", a: "auction", b: "arb", l: "my task", s: "sw" },
+  { i: "e33", a: "store", b: "auction", l: "tasks + claims", s: "sw", two: 1 },
+  { i: "e34", a: "auction", b: "partition", l: "split after 10 s of silence", s: "sw", two: 1 },
+  { i: "e35", a: "partition", b: "shared", l: "orphan report (120 s)", s: "sw" },
+  { i: "e36", a: "claims", b: "store", l: "claims, reports, releases", s: "plan", two: 1 },
+  { i: "e37", a: "claims", b: "lanes", l: "messages ride lane 1", s: "plan" },
+  { i: "e38", a: "store", b: "shared", l: "sync (CRDT)", s: "sw", two: 1 },
+  { i: "e39", a: "store", b: "llm", l: "relevant lessons", s: "plan" },
+  { i: "e40", a: "monitor", b: "lessons", l: "what went wrong", s: "plan" },
+  { i: "e41", a: "lessons", b: "store", l: "lesson + evidence", s: "plan" },
+  { i: "e42", a: "wifi", b: "zenoh", l: "Wi-Fi", s: "hw", two: 1 },
+  { i: "e43", a: "lanes", b: "wifi", l: "all three lanes", s: "plan", two: 1 },
+  { i: "e44", a: "lanes", b: "lora", l: "lane 1 only", s: "plan", two: 1 },
+  { i: "e45", a: "lora", b: "others", l: "15-byte checkpoints", s: "plan", two: 1, k: "lora" },
+  { i: "e46", a: "wifi", b: "exec", l: "team commands (mux 50)", s: "sim" },
+  { i: "e47", a: "zenoh", b: "mapjoin", l: "maps + sightings in · moves out", s: "sim", two: 1 },
+  { i: "e48", a: "mapjoin", b: "dash", l: "team map", s: "sim" },
+  { i: "e49", a: "zenoh", b: "fleet", l: "run logs", s: "plan" },
+  { i: "e50", a: "fleet", b: "llm", l: "new model versions", s: "plan" },
+  { i: "e51", a: "others", b: "shared", l: "their copies sync", s: "sw", two: 1 },
+  { i: "e52", a: "you", b: "dash", l: "ask in plain words", s: "plan" },
+  { i: "e53", a: "dash", b: "planner", l: "request · plan to approve", s: "plan", two: 1 },
+  { i: "e54", a: "planner", b: "tgcheck", l: "task graph", s: "plan" },
+  { i: "e55", a: "tgcheck", b: "shared", l: "approved tasks", s: "plan" },
+  { i: "e56", a: "shared", b: "planner", l: "progress + reports", s: "plan" },
+  { i: "e57", a: "shared", b: "dash", l: "what the store holds", s: "plan" },
+  { i: "e58", a: "rover1", b: "shared", l: "capabilities + battery", s: "plan" },
+  { i: "e59", a: "navplan", b: "docks", l: "map first, tag last", s: "plan" },
+  { i: "e60", a: "docks", b: "addons", l: "charging current", s: "plan" },
+  { i: "e61", a: "claims", b: "docks", l: "reserve a dock", s: "plan" },
+  { i: "e62", a: "surveyed", b: "tags", l: "surveyed tag positions", s: "plan" },
+  { i: "e63", a: "navplan", b: "routes", l: "routes over lanes", s: "plan" },
+  { i: "e64", a: "gazebo", b: "simworld", l: "simulates", s: "sim" },
+  { i: "e66", a: "tests", b: "exps", l: "metrics score each run", s: "sw" }
+];
+
+var T = {
+  sense: { t: "Sensors to map", intro: "How raw sensor data becomes a map, on one rover and then for the team.", steps: [
+    ["e1","Wheel encoders and the gyro feed the ESP32."],
+    ["e2","The ESP32 sends ticks (50 a second) and gyro readings (100 a second) to the serial bridge over USB."],
+    ["e4","The bridge turns ticks into odometry and removes wheel slip."],
+    ["e5","The EKF blends wheels and gyro into a smooth pose that slowly drifts."],
+    ["e3","The lidar's scans, cleaned by the scan filter, go into SLAM."],
+    ["e6","SLAM's map and corrected pose drive the frontier explorer."],
+    ["e7","Pose and its uncertainty reach the decision layer."],
+    ["e11","Each rover's own map goes out over Wi-Fi..."],
+    ["e42","...through the laptop's router..."],
+    ["e47","...to map joining, which merges it with the other rovers' maps."]]},
+  decide: { t: "A decision", intro: "How one rover decides what to do, from its inputs to its wheels.", steps: [
+    ["e7","Reflexes read the pose and its uncertainty..."],
+    ["e30","...the battery level, once a monitor is fitted..."],
+    ["e31","...and the link tier."],
+    ["e19","If nothing urgent fires, the local model gets the situation."],
+    ["e20","It proposes actions. The checker accepts, refuses or asks a human, and refusals go back into the prompt."],
+    ["e22","Accepted actions compete in goal arbitration (built, not yet wired in)."],
+    ["e24","A reflex skips all of that with a forced action."],
+    ["e23","The chosen goal passes the veto and goes to the executor."],
+    ["e25","The executor sends speed commands to the bridge."],
+    ["e2","The ESP32 runs a speed loop per wheel and stops the motors if commands stop for 500 ms."]]},
+  team: { t: "Joining maps", intro: "How separate rovers end up sharing one map and one memory. This runs in simulation today.", steps: [
+    ["e11","Each rover builds its own map with its own SLAM."],
+    ["e18","When rovers meet, each camera reads the other rover's tag cube."],
+    ["e17","Tag sightings go out over Wi-Fi."],
+    ["e42","The router carries maps and sightings to the laptop."],
+    ["e47","Map joining works out where one map sits inside the other."],
+    ["e46","Rendezvous commands outrank the explorer in each rover's mux, so the rovers stop and face each other."],
+    ["e48","The merged team map goes to the dashboard."],
+    ["e38","Each rover's copy of places and tasks syncs with the shared store..."],
+    ["e51","...and so do the other rovers' copies."]]},
+  request: { t: "A request, end to end", intro: "Planned: how a request like “stack these boxes” becomes finished work.", steps: [
+    ["e52","You ask for something in plain words."],
+    ["e53","The planner turns it into a task graph and shows you the plan to approve."],
+    ["e54","The graph goes to the checker."],
+    ["e55","Approved tasks enter the shared store."],
+    ["e38","Every rover's copy syncs."],
+    ["e58","Each rover advertises what it can do, such as an arm or a camera."],
+    ["e33","Every rover runs the same auction on the same task list."],
+    ["e32","The winner turns its task into a goal."],
+    ["e23","Arbitration and the veto pass it to the executor."],
+    ["e29","If recovery fails, the task is released back to the auction."],
+    ["e36","Claims, reports and releases travel as fixed messages."],
+    ["e56","The planner sees the progress and revises the graph."]]},
+  nolink: { t: "Wi-Fi drops", mode: "nolink", intro: "Highlighted: everything that keeps running on a rover with no Wi-Fi. Red dashed: links that stop until it returns.", steps: [
+    ["e34","After 10 seconds without hearing a teammate, each rover works only inside its own territory."],
+    ["e35","After 120 seconds, the silent rover's tasks are reported for a person to decide, once the link is back."],
+    ["e44","Only lane 1, safety and coordination, still fits on LoRa..."],
+    ["e45","...as 15-byte checkpoints, rover to rover."],
+    ["e31","The decision layer sees the worse link tier. On a LoRa-only link it skips the model."]]},
+  charge: { t: "Charging", intro: "Planned: how a rover notices a low battery and charges.", steps: [
+    ["e30","The battery monitor reports the charge."],
+    ["e24","When the trip home gets too tight, survival beats the mission: go home."],
+    ["e61","The rover reserves a dock first, so two rovers never head for the same one."],
+    ["e59","The map gets it close, and the tag on the pad guides the last few centimetres."],
+    ["e60","If no charging current appears, it backs off and re-aligns."]]},
+  perceive: { t: "What the camera sees", intro: "How a camera frame becomes a flagged object with a place on the map.", steps: [
+    ["e13","The change detector asks the vision model about frames that changed, plus a periodic sweep."],
+    ["e14","The allowlist flags objects that don't belong."],
+    ["e12","SLAM's pose and the lidar's range give the object a map position."],
+    ["e15","The decision layer can choose to go and inspect it."],
+    ["e16","Planned: objects become labelled places in the store."]]},
+  learn: { t: "Lessons and learning", intro: "Planned: how rovers learn from what happened and share it.", steps: [
+    ["e40","When something goes wrong, the rover writes a lesson from its logs."],
+    ["e41","The lesson goes into its store with the evidence behind it."],
+    ["e38","Lessons sync to every rover, marked as untrusted."],
+    ["e39","Relevant lessons are added to the model's prompt."],
+    ["e49","Run logs collect on the laptop."],
+    ["e50","After ISEF: the logs train a better onboard model."]]}
+};
+
+var REGION_CHIPS = [["all","Everything"],["people","People"],["laptop","Laptop"],["store","Shared store"],["rover","Every rover"],["body","Body",1],["where","Where am I",1],["memory","Memory",1],["talking","Talking",1],["moving","Moving",1],["deciding","Deciding",1],["perception","Perception",1],["teamlogic","Team logic",1],["roles","Rovers and roles"],["world","The world"],["testing","Testing"]];
+
+/* ---------- indexes ---------- */
+var NB = {}, RB = {}, EB = {};
+REG.forEach(function(r){ RB[r.id] = r; });
+N.forEach(function(n){ if (!n.h) n.h = 60 + 18 * (n.ln.length - 1); NB[n.id] = n; });
+E.forEach(function(e){ EB[e.i] = e; });
+function topOf(rid){ var r = RB[rid]; return r && r.p ? r.p : rid; }
+function inRegion(n, rid){ return n.r === rid || (RB[n.r] && RB[n.r].p === rid); }
+function regionPath(n){ var r = RB[n.r]; return r.p ? RB[r.p].t + " › " + r.t : r.t; }
+function el(tag, attrs, parent){ var x = document.createElementNS(NS, tag); if (attrs) for (var k in attrs) x.setAttribute(k, attrs[k]); if (parent) parent.appendChild(x); return x; }
+function h(tag, cls, text, parent){ var x = document.createElement(tag); if (cls) x.className = cls; if (text != null) x.textContent = text; if (parent) parent.appendChild(x); return x; }
+function mark(s, cx, cy, parent){
+  if (s === "hw") return el("circle", { "class": "d-hw", cx: cx, cy: cy, r: 4 }, parent);
+  if (s === "plan") return el("circle", { "class": "d-plan", cx: cx, cy: cy, r: 3.4 }, parent);
+  if (s === "sw") return el("rect", { "class": "d-sw", x: cx - 3.4, y: cy - 3.4, width: 6.8, height: 6.8 }, parent);
+  return el("rect", { "class": "d-sim", x: cx - 3.4, y: cy - 3.4, width: 6.8, height: 6.8, transform: "rotate(45 " + cx + " " + cy + ")" }, parent);
+}
+function dot(s){ var x = document.createElement("span"); x.className = "dot " + s; return x; }
+
+/* ---------- draw ---------- */
+var svg = document.getElementById("map");
+svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+var defs = el("defs", null, svg);
+[["a","mk"],["h","mk-hi"],["c","mk-cut"]].forEach(function(m){
+  var e1 = el("marker", { id: "m-" + m[0], viewBox: "0 0 10 10", refX: 10, refY: 5, markerWidth: 9, markerHeight: 9, markerUnits: "userSpaceOnUse", orient: "auto" }, defs);
+  el("path", { "class": m[1], d: "M0,0L10,5L0,10z" }, e1);
+  var e2 = el("marker", { id: "m-" + m[0] + "s", viewBox: "0 0 10 10", refX: 0, refY: 5, markerWidth: 9, markerHeight: 9, markerUnits: "userSpaceOnUse", orient: "auto" }, defs);
+  el("path", { "class": m[1], d: "M10,0L0,5L10,10z" }, e2);
+});
+var gReg = el("g", null, svg), gEdge = el("g", null, svg), gNode = el("g", null, svg), gLab = el("g", null, svg);
+
+REG.forEach(function(r){
+  if (r.hidden) return;
+  var g = el("g", { "class": "regionlabel", "data-r": r.id }, gReg);
+  if (r.p) {
+    el("rect", { "class": "srg", x: r.x, y: r.y, width: r.w, height: r.h, rx: 12 }, g);
+    var st = el("text", { "class": "srgl", x: r.x + 14, y: r.y + 24 }, g); st.textContent = r.t;
+  } else {
+    el("rect", { "class": "rg", x: r.x, y: r.y, width: r.w, height: r.h, rx: 16 }, g);
+    var t = el("text", { "class": "rgl", x: r.x + 18, y: r.y + 30 }, g); t.textContent = r.t;
+    if (r.s) { var ts = el("tspan", { "class": "rgs", dx: 10 }, t); ts.textContent = r.s; }
+  }
+});
+
+var nodeEls = {};
+N.forEach(function(n){
+  var g = el("g", { "class": "node", transform: "translate(" + n.x + "," + n.y + ")", tabindex: 0, role: "button", "data-n": n.id, "aria-label": n.t }, gNode);
+  nodeEls[n.id] = g;
+  if (n.id === "shared") {
+    el("rect", { "class": "store", width: n.w, height: n.h, rx: 14 }, g);
+    var tt = el("text", { "class": "nt", x: 18, y: 28 }, g); tt.textContent = n.t;
+    var sub = el("tspan", { "class": "rgs", dx: 10 }, tt); sub.textContent = n.sub;
+    var cx = 18;
+    n.ln.forEach(function(l){
+      var w = Math.round(32 + l[1].length * 6.4 + 12);
+      var cg = el("g", { "class": "ln", "data-s": l[0], transform: "translate(" + cx + ",48)" }, g);
+      el("rect", { "class": "chip", width: w, height: 34, rx: 17 }, cg);
+      mark(l[0], 17, 17, cg);
+      var ct = el("text", { x: 29, y: 21.5 }, cg); ct.textContent = l[1];
+      cx += w + 12;
+    });
+    return;
+  }
+  el("rect", { "class": "box", width: n.w, height: n.h, rx: 9 }, g);
+  var title = el("text", { "class": "nt", x: 14, y: 24 }, g); title.textContent = n.t;
+  n.ln.forEach(function(l, i){
+    var lg = el("g", { "class": "ln", "data-s": l[0] }, g);
+    mark(l[0], 18, 44 + 18 * i, lg);
+    var lt = el("text", { x: 30, y: 48 + 18 * i }, lg); lt.textContent = l[1];
+  });
+});
+
+/* edge geometry: side choice, slot distribution, cubic curves */
+function center(n){ return { x: n.x + n.w / 2, y: n.y + n.h / 2 }; }
+function pickSide(a, b){
+  var ca = center(a), cb = center(b), dx = cb.x - ca.x, dy = cb.y - ca.y;
+  var rx = Math.abs(dx) / ((a.w + b.w) / 2), ry = Math.abs(dy) / ((a.h + b.h) / 2);
+  if (rx > ry) return dx > 0 ? "r" : "l";
+  return dy > 0 ? "b" : "t";
+}
+var NORM = { r: [1,0], l: [-1,0], t: [0,-1], b: [0,1] };
+var slots = {};
+E.forEach(function(e){
+  var A = NB[e.a], B = NB[e.b];
+  e.sa = pickSide(A, B); e.sb = pickSide(B, A);
+  (slots[e.a + e.sa] = slots[e.a + e.sa] || []).push({ e: e, end: "a", o: center(B) });
+  (slots[e.b + e.sb] = slots[e.b + e.sb] || []).push({ e: e, end: "b", o: center(A) });
+});
+Object.keys(slots).forEach(function(key){
+  var list = slots[key], nid = list[0].end === "a" ? list[0].e.a : list[0].e.b, n = NB[nid];
+  var side = key.slice(nid.length), horiz = side === "t" || side === "b";
+  var L = horiz ? n.w : n.h;
+  list.sort(function(p, q){ return horiz ? p.o.x - q.o.x : p.o.y - q.o.y; });
+  var pos;
+  if (L > 700) {
+    pos = list.map(function(s){ var v = (horiz ? s.o.x - n.x : s.o.y - n.y); return Math.max(40, Math.min(L - 40, v)); });
+    for (var i = 1; i < pos.length; i++) if (pos[i] - pos[i - 1] < 26) pos[i] = pos[i - 1] + 26;
+  } else {
+    var m = Math.min(22, L * 0.15);
+    pos = list.map(function(s, i){ return m + (L - 2 * m) * (i + 1) / (list.length + 1); });
+  }
+  list.forEach(function(s, i){
+    var p = pos[i], pt;
+    if (side === "r") pt = { x: n.x + n.w, y: n.y + p };
+    else if (side === "l") pt = { x: n.x, y: n.y + p };
+    else if (side === "t") pt = { x: n.x + p, y: n.y };
+    else pt = { x: n.x + p, y: n.y + n.h };
+    s.e[s.end === "a" ? "pa" : "pb"] = pt;
+  });
+});
+function bez(p0, p1, p2, p3, t){ var u = 1 - t; return { x: u*u*u*p0.x + 3*u*u*t*p1.x + 3*u*t*t*p2.x + t*t*t*p3.x, y: u*u*u*p0.y + 3*u*u*t*p1.y + 3*u*t*t*p2.y + t*t*t*p3.y }; }
+var edgeEls = {}, labEls = {};
+E.forEach(function(e){
+  var p0 = e.pa, p3 = e.pb, na = NORM[e.sa], nb = NORM[e.sb];
+  var d = Math.hypot(p3.x - p0.x, p3.y - p0.y), k = Math.max(30, Math.min(240, d * 0.38));
+  var p1 = { x: p0.x + na[0] * k, y: p0.y + na[1] * k }, p2 = { x: p3.x + nb[0] * k, y: p3.y + nb[1] * k };
+  var dstr = "M" + p0.x.toFixed(1) + "," + p0.y.toFixed(1) + " C" + p1.x.toFixed(1) + "," + p1.y.toFixed(1) + " " + p2.x.toFixed(1) + "," + p2.y.toFixed(1) + " " + p3.x.toFixed(1) + "," + p3.y.toFixed(1);
+  var cls = "edge" + (e.s === "plan" ? " plan" : "") + (e.k ? " " + e.k : "");
+  var g = el("g", { "class": cls, "data-e": e.i }, gEdge);
+  var vis = el("path", { "class": "vis", d: dstr, "marker-end": "url(#m-a)" }, g);
+  if (e.two) vis.setAttribute("marker-start", "url(#m-as)");
+  var hit = el("path", { "class": "hitp", d: dstr }, g);
+  var tt = el("title", null, hit); tt.textContent = NB[e.a].t + " → " + NB[e.b].t + ": " + e.l;
+  edgeEls[e.i] = { g: g, vis: vis };
+  var mid = bez(p0, p1, p2, p3, 0.5);
+  e.mid = mid;
+  var lg = el("g", { "class": "lab", "data-e": e.i }, gLab);
+  var lt = el("text", { x: mid.x.toFixed(1), y: (mid.y + 4).toFixed(1) }, lg); lt.textContent = e.l;
+  var bg = el("g", { "class": "badge", transform: "translate(" + mid.x.toFixed(1) + "," + (mid.y - 18).toFixed(1) + ")" }, lg);
+  el("circle", { r: 12 }, bg); var bt = el("text", { y: 4 }, bg); bt.textContent = "";
+  bg.style.display = "none";
+  labEls[e.i] = { g: lg, badge: bg, num: bt };
+});
+
+/* ---------- state ---------- */
+var state = { focus: "all", tour: null, step: -1, sel: null, selE: null, statuses: { hw: true, sim: true, sw: true, plan: true } };
+var zoomed = false;
+
+function apply(){
+  var actN = null, actE = null, cut = {}, tourOrder = {};
+  if (state.tour) {
+    var t = T[state.tour];
+    actE = {};
+    if (t.mode === "nolink") {
+      E.forEach(function(e){
+        var ta = topOf(NB[e.a].r), tb = topOf(NB[e.b].r);
+        var off = ["laptop","people","store"].indexOf(ta) >= 0 || ["laptop","people","store"].indexOf(tb) >= 0 || ["e42","e43","e46"].indexOf(e.i) >= 0;
+        if (off) cut[e.i] = 1; else if (ta === "rover" && tb === "rover") actE[e.i] = 1;
+      });
+      ["e44","e45","e34","e31"].forEach(function(id){ actE[id] = 1; delete cut[id]; });
+    }
+    t.steps.forEach(function(s, i){ if (!cut[s[0]]) actE[s[0]] = 1; tourOrder[s[0]] = (tourOrder[s[0]] || []).concat([i + 1]); });
+    actN = {};
+    Object.keys(actE).forEach(function(id){ actN[EB[id].a] = 1; actN[EB[id].b] = 1; });
+  } else if (state.sel) {
+    actN = {}; actN[state.sel] = 1; actE = {};
+    E.forEach(function(e){ if (e.a === state.sel || e.b === state.sel) { actE[e.i] = 1; actN[e.a] = 1; actN[e.b] = 1; } });
+  } else if (state.selE) {
+    var se = EB[state.selE]; actE = {}; actE[se.i] = 1; actN = {}; actN[se.a] = 1; actN[se.b] = 1;
+  } else if (state.focus !== "all") {
+    actN = {}; N.forEach(function(n){ if (inRegion(n, state.focus)) actN[n.id] = 1; });
+    actE = {}; E.forEach(function(e){ if (actN[e.a] || actN[e.b]) actE[e.i] = 1; });
+  }
+  var st = state.statuses;
+  N.forEach(function(n){
+    var g = nodeEls[n.id];
+    g.classList.toggle("dim", !!actN && !actN[n.id]);
+    g.classList.toggle("sel", state.sel === n.id);
+    g.classList.toggle("hl", !!actN && !!actN[n.id] && state.sel !== n.id && (state.sel != null || state.selE != null || state.tour != null));
+    var any = false;
+    g.querySelectorAll(".ln").forEach(function(l){ var on = !!st[l.getAttribute("data-s")]; l.classList.toggle("off", !on); if (on) any = true; });
+    g.classList.toggle("sdim", !any);
+  });
+  var curEdge = state.tour && state.step >= 0 ? T[state.tour].steps[state.step][0] : null;
+  E.forEach(function(e){
+    var x = edgeEls[e.i], on = !!actE && !!actE[e.i], isCut = !!cut[e.i];
+    x.g.classList.toggle("on", on && !isCut);
+    x.g.classList.toggle("cut", isCut);
+    x.g.classList.toggle("cur", e.i === curEdge);
+    x.g.classList.toggle("dim", (!!actE && !on && !isCut) || !st[e.s]);
+    x.vis.setAttribute("marker-end", isCut ? "url(#m-c)" : (on ? "url(#m-h)" : "url(#m-a)"));
+    if (e.two) x.vis.setAttribute("marker-start", isCut ? "url(#m-cs)" : (on ? "url(#m-hs)" : "url(#m-as)"));
+    var lb = labEls[e.i];
+    var show = (on || isCut) ? true : (!actE && zoomed && st[e.s]);
+    lb.g.classList.toggle("show", !!show);
+    lb.g.classList.toggle("on", on && !isCut);
+    lb.g.classList.toggle("cut", isCut);
+    if (tourOrder[e.i]) { lb.badge.style.display = ""; lb.num.textContent = tourOrder[e.i].join(","); lb.badge.classList.toggle("cur", e.i === curEdge); }
+    else lb.badge.style.display = "none";
+  });
+  document.querySelectorAll(".regionlabel").forEach(function(g){
+    var rid = g.getAttribute("data-r");
+    var dim = state.focus !== "all" && !state.tour && !state.sel && !state.selE && rid !== state.focus && topOf(rid) !== state.focus && rid !== topOf(state.focus);
+    g.classList.toggle("dim", dim);
+  });
+  updateWhere();
+}
+
+/* ---------- view box: fit, animate, pan, zoom ---------- */
+var box = document.getElementById("mapbox");
+var vb = { x: 0, y: 0, w: W, h: H };
+function AR(){ var r = box.getBoundingClientRect(); return r.width > 0 && r.height > 0 ? r.width / r.height : 1.6; }
+function setVB(v){
+  vb = v;
+  svg.setAttribute("viewBox", v.x.toFixed(1) + " " + v.y.toFixed(1) + " " + v.w.toFixed(1) + " " + v.h.toFixed(1));
+  var z = v.w < 1500;
+  if (z !== zoomed) { zoomed = z; apply(); }
+}
+function target(b, pad){
+  pad = pad == null ? 60 : pad;
+  var ar = AR(), w = b.w + 2 * pad, hh = b.h + 2 * pad;
+  if (w / hh < ar) w = hh * ar; else hh = w / ar;
+  return { x: b.x + b.w / 2 - w / 2, y: b.y + b.h / 2 - hh / 2, w: w, h: hh };
+}
+var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+var anim = null;
+function animateTo(t){
+  if (anim) cancelAnimationFrame(anim);
+  if (reduce) { setVB(t); return; }
+  var s = { x: vb.x, y: vb.y, w: vb.w, h: vb.h }, t0 = performance.now(), D = 420;
+  function step(now){
+    var k = Math.min(1, (now - t0) / D), q = k < .5 ? 4*k*k*k : 1 - Math.pow(-2*k + 2, 3) / 2;
+    setVB({ x: s.x + (t.x - s.x) * q, y: s.y + (t.y - s.y) * q, w: s.w + (t.w - s.w) * q, h: s.h + (t.h - s.h) * q });
+    if (k < 1) anim = requestAnimationFrame(step); else anim = null;
+  }
+  anim = requestAnimationFrame(step);
+}
+function bounds(ids){
+  var x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  ids.forEach(function(id){ var n = NB[id]; if (!n) return; x0 = Math.min(x0, n.x); y0 = Math.min(y0, n.y); x1 = Math.max(x1, n.x + n.w); y1 = Math.max(y1, n.y + n.h); });
+  return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+}
+function fitAll(anim){ var t = target({ x: 0, y: 0, w: W, h: H }, 10); if (anim) animateTo(t); else setVB(t); }
+function toSvg(cx, cy){ var r = svg.getBoundingClientRect(); return { x: vb.x + (cx - r.left) / r.width * vb.w, y: vb.y + (cy - r.top) / r.height * vb.h }; }
+function zoomAt(p, f){
+  var w = Math.max(240, Math.min(W * 1.8, vb.w * f)), s = w / vb.w;
+  setVB({ x: p.x - (p.x - vb.x) * s, y: p.y - (p.y - vb.y) * s, w: w, h: vb.h * s });
+}
+box.addEventListener("wheel", function(ev){
+  ev.preventDefault();
+  if (anim) { cancelAnimationFrame(anim); anim = null; }
+  zoomAt(toSvg(ev.clientX, ev.clientY), Math.exp(ev.deltaY * (ev.deltaMode === 1 ? 0.05 : 0.0016)));
+}, { passive: false });
+var ptrs = {}, moved = false, last = null, pinch = null;
+box.addEventListener("pointerdown", function(ev){
+  if (ev.button !== 0 && ev.pointerType === "mouse") return;
+  if (ev.target.closest && ev.target.closest(".zoom")) return;
+  ptrs[ev.pointerId] = { x: ev.clientX, y: ev.clientY };
+  moved = false; last = { x: ev.clientX, y: ev.clientY };
+  if (Object.keys(ptrs).length === 2) { var p = Object.values(ptrs); pinch = Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y); }
+});
+box.addEventListener("pointermove", function(ev){
+  if (!ptrs[ev.pointerId]) return;
+  ptrs[ev.pointerId] = { x: ev.clientX, y: ev.clientY };
+  var keys = Object.keys(ptrs);
+  if (anim) { cancelAnimationFrame(anim); anim = null; }
+  if (keys.length === 2 && pinch) {
+    var p = Object.values(ptrs), dist = Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y);
+    var mid = toSvg((p[0].x + p[1].x) / 2, (p[0].y + p[1].y) / 2);
+    zoomAt(mid, pinch / dist); pinch = dist; moved = true; return;
+  }
+  var dx = ev.clientX - last.x, dy = ev.clientY - last.y;
+  if (!moved && Math.hypot(dx, dy) < 4) return;
+  if (!moved) { moved = true; box.classList.add("dragging"); try { box.setPointerCapture(ev.pointerId); } catch (e) {} }
+  var r = svg.getBoundingClientRect();
+  setVB({ x: vb.x - dx / r.width * vb.w, y: vb.y - dy / r.height * vb.h, w: vb.w, h: vb.h });
+  last = { x: ev.clientX, y: ev.clientY };
+});
+function endPtr(ev){
+  delete ptrs[ev.pointerId];
+  if (Object.keys(ptrs).length < 2) pinch = null;
+  box.classList.remove("dragging");
+  if (Object.keys(ptrs).length === 1) { var p = Object.values(ptrs)[0]; last = { x: p.x, y: p.y }; }
+}
+box.addEventListener("pointerup", endPtr);
+box.addEventListener("pointercancel", endPtr);
+document.getElementById("zin").addEventListener("click", function(){ zoomAt({ x: vb.x + vb.w / 2, y: vb.y + vb.h / 2 }, 0.75); });
+document.getElementById("zout").addEventListener("click", function(){ zoomAt({ x: vb.x + vb.w / 2, y: vb.y + vb.h / 2 }, 1.33); });
+document.getElementById("zfit").addEventListener("click", function(){ fitAll(true); });
+box.addEventListener("keydown", function(ev){
+  var k = ev.key, step = 0.12;
+  if (k === "ArrowLeft") setVB({ x: vb.x - vb.w * step, y: vb.y, w: vb.w, h: vb.h });
+  else if (k === "ArrowRight") setVB({ x: vb.x + vb.w * step, y: vb.y, w: vb.w, h: vb.h });
+  else if (k === "ArrowUp") setVB({ x: vb.x, y: vb.y - vb.h * step, w: vb.w, h: vb.h });
+  else if (k === "ArrowDown") setVB({ x: vb.x, y: vb.y + vb.h * step, w: vb.w, h: vb.h });
+  else if (k === "+" || k === "=") zoomAt({ x: vb.x + vb.w / 2, y: vb.y + vb.h / 2 }, 0.8);
+  else if (k === "-" || k === "_") zoomAt({ x: vb.x + vb.w / 2, y: vb.y + vb.h / 2 }, 1.25);
+  else if (k === "0") fitAll(true);
+  else return;
+  ev.preventDefault();
+});
+document.addEventListener("keydown", function(ev){ if (ev.key === "Escape") clearSelection(); });
+window.addEventListener("resize", function(){ var c = { x: vb.x + vb.w / 2, y: vb.y + vb.h / 2 }, hh = vb.w / AR(); setVB({ x: vb.x, y: c.y - hh / 2, w: vb.w, h: hh }); });
+
+/* ---------- clicks on the map ---------- */
+svg.addEventListener("click", function(ev){
+  if (moved) { moved = false; return; }
+  var ng = ev.target.closest ? ev.target.closest(".node") : null;
+  if (ng) { selectNode(ng.getAttribute("data-n"), false); return; }
+  var eg = ev.target.closest ? ev.target.closest(".edge") : null;
+  if (eg) { selectEdge(eg.getAttribute("data-e")); return; }
+  if (state.sel || state.selE) { state.sel = null; state.selE = null; apply(); renderPanel(); }
+});
+svg.addEventListener("dblclick", function(ev){
+  var ng = ev.target.closest ? ev.target.closest(".node") : null;
+  if (ng) { selectNode(ng.getAttribute("data-n"), true); ev.preventDefault(); }
+});
+gNode.addEventListener("keydown", function(ev){
+  if (ev.key !== "Enter" && ev.key !== " ") return;
+  var ng = ev.target.closest(".node"); if (!ng) return;
+  ev.preventDefault(); selectNode(ng.getAttribute("data-n"), true);
+});
+
+/* ---------- actions ---------- */
+function neighbors(id){ var s = [id]; E.forEach(function(e){ if (e.a === id) s.push(e.b); if (e.b === id) s.push(e.a); }); return s; }
+function selectNode(id, zoom){
+  state.sel = id; state.selE = null; state.tour = null; state.step = -1;
+  syncTourChips(); apply(); renderPanel();
+  if (zoom) animateTo(target(bounds(neighbors(id)), 80));
+}
+function selectEdge(id){
+  state.selE = id; state.sel = null; state.tour = null; state.step = -1;
+  syncTourChips(); apply(); renderPanel();
+}
+function setFocus(rid){
+  state.focus = rid; state.sel = null; state.selE = null; state.tour = null; state.step = -1;
+  syncRegionChips(); syncTourChips(); apply(); renderPanel();
+  if (rid === "all") fitAll(true); else { var r = RB[rid]; animateTo(target({ x: r.x, y: r.y, w: r.w, h: r.h }, 30)); }
+}
+function startTour(id){
+  state.tour = id; state.step = -1; state.sel = null; state.selE = null;
+  syncTourChips(); apply(); renderPanel();
+  var ids = {}; T[id].steps.forEach(function(s){ ids[EB[s[0]].a] = 1; ids[EB[s[0]].b] = 1; });
+  animateTo(target(bounds(Object.keys(ids)), 70));
+}
+function goStep(i){
+  var t = T[state.tour]; if (!t) return;
+  state.step = Math.max(0, Math.min(t.steps.length - 1, i));
+  apply(); renderPanel();
+  var e = EB[t.steps[state.step][0]];
+  animateTo(target(bounds([e.a, e.b]), 110));
+}
+function clearSelection(){
+  if (!state.sel && !state.selE && !state.tour) { if (state.focus !== "all") setFocus("all"); return; }
+  state.sel = null; state.selE = null; state.tour = null; state.step = -1;
+  syncTourChips(); apply(); renderPanel();
+}
+
+/* ---------- toolbar ---------- */
+var regionWrap = document.getElementById("regionChips"), tourWrap = document.getElementById("tourChips"), statWrap = document.getElementById("statusChips");
+REGION_CHIPS.forEach(function(c){
+  var b = h("button", c[2] ? "subchip" : "", c[1], regionWrap); b.type = "button"; b.dataset.r = c[0];
+  b.setAttribute("aria-pressed", String(c[0] === "all"));
+  b.addEventListener("click", function(){ setFocus(c[0]); });
+});
+Object.keys(T).forEach(function(id){
+  var b = h("button", "", T[id].t, tourWrap); b.type = "button"; b.dataset.t = id; b.setAttribute("aria-pressed", "false");
+  b.addEventListener("click", function(){ if (state.tour === id) clearSelection(); else startTour(id); });
+});
+var counts = { hw: 0, sim: 0, sw: 0, plan: 0 };
+N.forEach(function(n){ n.ln.forEach(function(l){ counts[l[0]]++; }); });
+Object.keys(STATUS).forEach(function(s){
+  var b = document.createElement("button"); b.type = "button"; b.className = "stat"; b.dataset.s = s; b.setAttribute("aria-pressed", "true");
+  b.appendChild(dot(s)); b.appendChild(document.createTextNode(STATUS[s])); var n = h("span", "n", String(counts[s]), b);
+  b.addEventListener("click", function(){
+    var on = Object.keys(state.statuses).filter(function(k){ return state.statuses[k]; });
+    if (state.statuses[s] && on.length === 1) return;
+    state.statuses[s] = !state.statuses[s]; syncStatusChips(); apply();
+  });
+  statWrap.appendChild(b);
+});
+var viewWrap = document.getElementById("viewChips");
+var VIEWS = [["goal", "End goal", { hw: true, sim: true, sw: true, plan: true }], ["built", "Built so far", { hw: true, sim: true, sw: true, plan: false }]];
+VIEWS.forEach(function(v){
+  var b = h("button", "", v[1], viewWrap); b.type = "button"; b.dataset.v = v[0];
+  b.addEventListener("click", function(){
+    Object.keys(v[2]).forEach(function(k){ state.statuses[k] = v[2][k]; });
+    syncStatusChips(); apply();
+  });
+});
+function syncStatusChips(){
+  statWrap.querySelectorAll("button").forEach(function(b){ b.setAttribute("aria-pressed", String(!!state.statuses[b.dataset.s])); });
+  viewWrap.querySelectorAll("button").forEach(function(b){
+    var v = VIEWS.filter(function(x){ return x[0] === b.dataset.v; })[0][2];
+    var match = Object.keys(v).every(function(k){ return !!state.statuses[k] === v[k]; });
+    b.setAttribute("aria-pressed", String(match));
+  });
+}
+syncStatusChips();
+function syncRegionChips(){ regionWrap.querySelectorAll("button").forEach(function(b){ b.setAttribute("aria-pressed", String(b.dataset.r === state.focus)); }); }
+function syncTourChips(){ tourWrap.querySelectorAll("button").forEach(function(b){ b.setAttribute("aria-pressed", String(b.dataset.t === state.tour)); }); }
+function updateWhere(){
+  var w = document.getElementById("where"), txt;
+  if (state.tour) txt = "Path: " + T[state.tour].t + (state.step >= 0 ? " · step " + (state.step + 1) : "");
+  else if (state.sel) txt = NB[state.sel].t;
+  else if (state.selE) txt = NB[EB[state.selE].a].t + " → " + NB[EB[state.selE].b].t;
+  else txt = state.focus === "all" ? "Everything" : RB[state.focus].t;
+  var st = state.statuses, built = st.hw && st.sim && st.sw && !st.plan;
+  w.textContent = (built ? "Built so far · " : "End goal · ") + txt;
+}
+
+/* ---------- search ---------- */
+var q = document.getElementById("q"), results = document.getElementById("results");
+function runSearch(){
+  var v = q.value.trim().toLowerCase(); results.innerHTML = "";
+  if (!v) { results.hidden = true; return; }
+  var hits = N.filter(function(n){ return n.t.toLowerCase().indexOf(v) >= 0 || n.ln.some(function(l){ return l[1].toLowerCase().indexOf(v) >= 0; }) || (n.d || "").toLowerCase().indexOf(v) >= 0; }).slice(0, 8);
+  if (!hits.length) { var li0 = h("li", "", null, results); h("small", "", "No part matches “" + q.value.trim() + "”", li0).style.padding = "7px 9px"; results.hidden = false; return; }
+  hits.forEach(function(n){
+    var li = h("li", "", null, results), b = h("button", "", null, li); b.type = "button";
+    b.appendChild(document.createTextNode(n.t)); h("small", "", regionPath(n), b);
+    b.addEventListener("click", function(){ results.hidden = true; q.value = ""; selectNode(n.id, true); });
+  });
+  results.hidden = false;
+}
+q.addEventListener("input", runSearch);
+q.addEventListener("keydown", function(ev){
+  if (ev.key === "Enter") { var b = results.querySelector("button"); if (b) b.click(); ev.preventDefault(); }
+  if (ev.key === "Escape") { q.value = ""; results.hidden = true; }
+});
+document.addEventListener("click", function(ev){ if (!ev.target.closest(".search")) results.hidden = true; });
+
+/* ---------- panel ---------- */
+var panel = document.getElementById("panel");
+function statLine(lines, parent){
+  var c = {}; lines.forEach(function(l){ c[l[0]] = (c[l[0]] || 0) + 1; });
+  var p = h("div", "statline", null, parent);
+  Object.keys(STATUS).forEach(function(s){ if (!c[s]) return; var sp = h("span", "", null, p); sp.appendChild(dot(s)); sp.appendChild(document.createTextNode(c[s] + " " + STATUS[s].toLowerCase())); });
+}
+function nodeLink(id, parent, extra){
+  var b = h("button", "lnk", NB[id].t, parent); b.type = "button";
+  b.addEventListener("click", function(){ selectNode(id, true); });
+  if (extra) h("span", "lbl", extra, parent);
+  return b;
+}
+function toursFor(edgeIds){
+  var out = []; Object.keys(T).forEach(function(id){ if (T[id].steps.some(function(s){ return edgeIds.indexOf(s[0]) >= 0; })) out.push(id); }); return out;
+}
+function tourButtons(ids, parent){
+  if (!ids.length) return;
+  h("h4", "", "Part of these paths", parent);
+  var row = h("div", "btnrow", null, parent);
+  ids.forEach(function(id){ var b = h("button", "btn", T[id].t, row); b.type = "button"; b.addEventListener("click", function(){ startTour(id); }); });
+}
+function renderPanel(){
+  panel.innerHTML = "";
+  if (state.tour) {
+    var t = T[state.tour];
+    h("p", "crumb", "Path", panel); h("h3", "", t.t, panel); h("p", "desc", t.intro, panel);
+    var ol = h("ol", "steps", null, panel);
+    t.steps.forEach(function(s, i){
+      var li = h("li", "", null, ol), b = h("button", i === state.step ? "cur" : "", null, li); b.type = "button";
+      h("span", "num", String(i + 1), b); h("span", "", s[1], b);
+      b.addEventListener("click", function(){ goStep(i); });
+    });
+    var row = h("div", "btnrow", null, panel);
+    var pv = h("button", "btn", "Previous", row); pv.type = "button"; pv.disabled = state.step <= 0; pv.addEventListener("click", function(){ goStep(state.step - 1); });
+    var nx = h("button", "btn primary", state.step < 0 ? "Start" : "Next", row); nx.type = "button"; nx.disabled = state.step >= t.steps.length - 1; nx.addEventListener("click", function(){ goStep(state.step + 1); });
+    var cl = h("button", "btn", "Done", row); cl.type = "button"; cl.addEventListener("click", clearSelection);
+    return;
+  }
+  if (state.sel) {
+    var n = NB[state.sel];
+    h("p", "crumb", regionPath(n), panel); h("h3", "", n.t, panel);
+    statLine(n.ln, panel);
+    if (n.d) h("p", "desc", n.d, panel);
+    var ul = h("ul", "feat", null, panel);
+    n.ln.forEach(function(l){ var li = h("li", "", null, ul); li.appendChild(dot(l[0])); h("span", "", l[1], li); });
+    var outs = E.filter(function(e){ return e.a === n.id || (e.two && e.b === n.id); });
+    var ins = E.filter(function(e){ return e.b === n.id || (e.two && e.a === n.id); });
+    if (outs.length) { h("h4", "", "Sends to", panel); var uo = h("ul", "conn", null, panel); outs.forEach(function(e){ var li = h("li", "", null, uo); nodeLink(e.a === n.id ? e.b : e.a, li, " · " + e.l); }); }
+    if (ins.length) { h("h4", "", "Receives from", panel); var ui = h("ul", "conn", null, panel); ins.forEach(function(e){ var li = h("li", "", null, ui); nodeLink(e.b === n.id ? e.a : e.b, li, " · " + e.l); }); }
+    if (n.src) { h("h4", "", "Where it lives", panel); h("code", "", n.src, panel); }
+    tourButtons(toursFor(E.filter(function(e){ return e.a === n.id || e.b === n.id; }).map(function(e){ return e.i; })), panel);
+    var row2 = h("div", "btnrow", null, panel);
+    var z = h("button", "btn primary", "Zoom to it", row2); z.type = "button"; z.addEventListener("click", function(){ animateTo(target(bounds(neighbors(n.id)), 80)); });
+    var c2 = h("button", "btn", "Clear", row2); c2.type = "button"; c2.addEventListener("click", clearSelection);
+    return;
+  }
+  if (state.selE) {
+    var e = EB[state.selE];
+    h("p", "crumb", "Connection", panel); h("h3", "", e.l, panel);
+    var p = h("p", "desc", null, panel); nodeLink(e.a, p); p.appendChild(document.createTextNode(e.two ? " ↔ " : " → ")); nodeLink(e.b, p);
+    var sl = h("div", "statline", null, panel); var sp = h("span", "", null, sl); sp.appendChild(dot(e.s)); sp.appendChild(document.createTextNode(STATUS[e.s]));
+    tourButtons(toursFor([e.i]), panel);
+    var c3 = h("button", "btn", "Clear", h("div", "btnrow", null, panel)); c3.type = "button"; c3.addEventListener("click", clearSelection);
+    return;
+  }
+  if (state.focus !== "all") {
+    var r = RB[state.focus];
+    h("p", "crumb", r.p ? RB[r.p].t : "Area", panel); h("h3", "", r.t, panel);
+    var parts = N.filter(function(nn){ return inRegion(nn, state.focus); });
+    var all = []; parts.forEach(function(nn){ all = all.concat(nn.ln); }); statLine(all, panel);
+    h("h4", "", "Parts", panel);
+    var up = h("ul", "conn", null, panel);
+    parts.forEach(function(nn){ var li = h("li", "", null, up); nodeLink(nn.id, li); });
+    var ext = {}; E.forEach(function(ed){ var ia = inRegion(NB[ed.a], state.focus), ib = inRegion(NB[ed.b], state.focus); if (ia !== ib) ext[ia ? ed.b : ed.a] = 1; });
+    var ek = Object.keys(ext);
+    if (ek.length) { h("h4", "", "Connects outside to", panel); var ue = h("ul", "conn", null, panel); ek.forEach(function(id){ var li = h("li", "", null, ue); nodeLink(id, li, " · " + regionPath(NB[id])); }); }
+    var bk = h("button", "btn", "Back to everything", h("div", "btnrow", null, panel)); bk.type = "button"; bk.addEventListener("click", function(){ setFocus("all"); });
+    return;
+  }
+  h("p", "crumb", "Start here", panel);
+  h("h3", "", "How to use this map", panel);
+  h("p", "desc", "This map shows the end goal: every part the system should have. Hollow circles are planned; the other marks show what already runs on the rover, in simulation, or as tested software. “Built so far” hides the planned parts.", panel);
+  var tips = h("ul", "tips", null, panel);
+  ["Focus on an area with the buttons above, or drag and zoom the map.",
+   "Follow a path to watch one kind of information move, step by step.",
+   "Click any box to see what it does, what it connects to, and where it lives in the code. Double-click to zoom to it.",
+   "Turn statuses off to see only what's built, or only what's planned.",
+   "Zoom in to read the label on every connection. Press Esc to clear."].forEach(function(s){ h("li", "", s, tips); });
+  h("h4", "", "What's on the map", panel);
+  h("p", "desc", N.length + " parts and " + E.length + " connections, across " + REG.filter(function(r){ return !r.p; }).length + " areas. The " + (counts.hw + counts.sim + counts.sw + counts.plan) + " features break down like this:", panel);
+  statLine([].concat.apply([], N.map(function(nn){ return nn.ln; })), panel);
+  h("h4", "", "Good places to start", panel);
+  var row3 = h("div", "btnrow", null, panel);
+  [["request","A request, end to end"],["team","Joining maps"],["nolink","Wi-Fi drops"]].forEach(function(c){ var b = h("button", "btn", c[1], row3); b.type = "button"; b.addEventListener("click", function(){ startTour(c[0]); }); });
+}
+
+/* ---------- start ---------- */
+apply();
+renderPanel();
+function init(){ fitAll(false); }
+if (box.getBoundingClientRect().width > 0) init(); else window.addEventListener("load", init);
+setTimeout(init, 60);
+})();
+</script>
+
+</html>
